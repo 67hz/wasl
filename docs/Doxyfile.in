@@ -1,0 +1,14 @@
+PROJECT_NAME            =   "libwasl"
+
+OUTPUT_DIRECTORY        =   @CMAKE_CURRENT_BINARY_DIR@/doc_doxygen/
+INPUT                   =   @CMAKE_CURRENT_SOURCE_DIR@/../include/wasl @CMAKE_CURRENT_SOURCE_DIR@/docs
+
+EXTRACT_PRIVATE         =   YES
+EXTRACT_PRIV_VIRTUAL    =   YES
+EXTRACT_STATIC          =   YES
+
+GENERATE_TODOLIST       =   YES
+GENERATE_BUGLIST       =   YES
+
+GENERATE_HTML = NO
+GENERATE_XML = YES

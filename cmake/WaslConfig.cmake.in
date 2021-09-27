@@ -1,0 +1,12 @@
+get_filename_component(WASL_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+include(CMakeFindDependencyMacro)
+
+list(APPEND CMAKE_MODULE_PATH ${WASL_CMAKE_DIR})
+
+# Wasl has no external dependencies so just include targets
+if(NOT TARGET Wasl::Wasl)
+	message(STATUS "Adding target for libwasl at ${WASL_CMAKE_DIR}")
+	include("${WASL_CMAKE_DIR}/WaslTargets.cmake")
+endif()
+
+set(WASL_LIBRARIES Wasl::Wasl)

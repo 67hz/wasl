@@ -1,0 +1,8 @@
+extensions = [ "breathe", "m2r2" ]
+breathe_projects = { "wasl": "@CMAKE_CURRENT_BINARY_DIR@/doc_doxygen/xml" }
+breathe_default_project = "wasl"
+
+project = "wasl"
+author = "67hz"
+
+html_theme = 'sphinx_rtd_theme'
