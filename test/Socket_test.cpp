@@ -17,9 +17,12 @@ using wasl::local::toUType;
 constexpr gsl::czstring<> srv_path{"/tmp/wasl/srv"};
 constexpr gsl::czstring<> client_path{"/tmp/wasl/client"};
 
+#ifdef SYS_API_LINUX
+using socket_local = socket_node<struct sockaddr_un, SOCK_DGRAM>;
+
 TEST(socket_builder, CanBuildUnixDomainDatagram) {
-	std::unique_ptr<socket_dgram_local> sockUP { socket_node<sockaddr_un, SOCK_DGRAM>
-		::create(srv_path)->socket()->bind()->build() };
+	std::unique_ptr<socket_local> sockUP { socket_local::
+    create(srv_path)->socket()->bind()->build() };
 
 	ASSERT_NE(sockno(*sockUP), INVALID_SOCKET);
 	ASSERT_TRUE(sockUP);
@@ -31,6 +34,14 @@ TEST(socket_builder, MakeHelperUnixDomainDatagram) {
 	ASSERT_TRUE(is_open(*sockUP));
 }
 
+TEST(socket, CanConnectToPeerOnSameHost) {
+	auto s1 { make_socket<sockaddr_un, SOCK_DGRAM>(srv_path) };
+	auto s2 { make_socket<sockaddr_un, SOCK_DGRAM>(client_path) };
+
+}
+
+#endif // unix domain tests
+
 TEST(SockErrorFlags, LogicalOpsAreTrue) {
 	auto err = SockError::ERR_SOCKET | SockError::ERR_CONNECT;
 	ASSERT_FALSE(toUType(err & SockError::ERR_BIND) != 0);
@@ -38,12 +49,7 @@ TEST(SockErrorFlags, LogicalOpsAreTrue) {
 	ASSERT_TRUE(toUType(err & SockError::ERR_BIND) != 0);
 }
 
-TEST(socket, CanConnectToPeer) {
-	auto s1 { make_socket<sockaddr_un, SOCK_DGRAM>(srv_path) };
-	auto s2 { make_socket<sockaddr_un, SOCK_DGRAM>(client_path) };
-
-}
-
+#if 0 // TODO move this to socket_stream test
 TEST(datagram_sockets, CanReadAndWrite) {
 	auto msg = "some_message"s;
 	auto srvUP { make_socket<sockaddr_un, SOCK_DGRAM>(srv_path) };
@@ -63,3 +69,4 @@ TEST(datagram_sockets, CanReadAndWrite) {
 		ss_cl << msg << std::endl;
 	});
 }
+#endif

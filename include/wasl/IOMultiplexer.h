@@ -9,6 +9,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <string>
 
 #ifdef SYS_API_LINUX
 #include <sys/epoll.h>

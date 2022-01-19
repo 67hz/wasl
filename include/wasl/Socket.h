@@ -1,12 +1,14 @@
 #ifndef WASL_SOCKET_H
 #define WASL_SOCKET_H
 
+#include <wasl/Common.h>
 #include <wasl/Types.h>
 
 #include <gsl/pointers>
 #include <gsl/string_span> // czstring
 #include <type_traits>
 #include <utility>
+#include <iostream>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -17,7 +19,6 @@
 #else
 #include <arpa/inet.h>
 #include <errno.h>
-#include <iostream>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -29,7 +30,7 @@
 namespace wasl {
 namespace ip {
 
-template <typename T> struct socket_traits {};
+template <typename T, typename isPosix = void> struct socket_traits {};
 
 template <> struct socket_traits<struct sockaddr_in> {
   using type = struct sockaddr_in;
@@ -43,11 +44,13 @@ template <> struct socket_traits<struct sockaddr_in6> {
   static constexpr int domain = AF_INET6;
 };
 
+#ifdef SYS_API_LINUX
 template <> struct socket_traits<struct sockaddr_un> {
   using type = struct sockaddr_un;
   using path_type = gsl::czstring<>;
   static constexpr int domain = AF_LOCAL;
 };
+#endif
 
 template <typename SocketNode> struct socket_builder;
 
@@ -127,8 +130,6 @@ int socket_connect(const T *node, SOCKET link) {
   return connect(sockno(*node), (SOCKADDR *)&(addr), sizeof(addr));
 }
 
-// todo move impl to cpp and use explicit instantiation for dgrams and streams
-// maintain error state for step-wise error handling
 template <typename SocketNode> struct socket_builder {
   static constexpr int socket_type = SocketNode::socket_type;
   using node_type = SocketNode;
@@ -156,6 +157,8 @@ template <typename SocketNode> struct socket_builder {
 
   socket_builder *connect(SOCKET target_sd);
 
+  socket_builder *listen(SOCKET target_sd);
+
   explicit operator bool() const {
     return !local::toUType(sock_err) && is_open(*sock);
   }
@@ -172,9 +175,10 @@ template <typename SocketNode> struct socket_builder {
 /// passive_opens (e.g., TCP servers) adding listen() to builder chain
 /// active opens (e.g., client sockets) adding connect() to builder chain
 /// see Stevens UNPp34
-/// \tparam AddType Any of struct addr_x socket types e.g.: { sockaddr_un,
-/// sockaddr_in, ...} \tparam SockType type of socket used in socket() call: {
-/// SOCK_STREAM, SOCK_DGRAM, SOCK_RAW, ...}
+/// \tparam AddrType Any of struct addr_x socket types e.g.: { sockaddr_un,
+/// sockaddr_in, ...}
+/// \tparam SockType type of socket used in socket() call
+/// e.g.: {SOCK_STREAM, SOCK_DGRAM, SOCK_RAW, ...}
 template <typename AddrType, int SockType,
           typename sock_traits = socket_traits<AddrType>>
 auto make_socket(typename sock_traits::path_type sock_path) {
@@ -189,8 +193,6 @@ auto make_socket(typename sock_traits::path_type sock_path) {
 
   return std::unique_ptr<socket_node<AddrType, SockType>>(std::move(socket));
 }
-
-using socket_dgram_local = socket_node<struct sockaddr_un, SOCK_DGRAM>;
 
 } // namespace ip
 } // namespace wasl

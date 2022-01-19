@@ -9,6 +9,10 @@
 #include <sys/socket.h> // struct sockaddr
 #endif
 
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
+
 #ifdef __cplusplus
 #define BEGIN_C_DECLS extern "C" {
 #define END_C_DECLS }

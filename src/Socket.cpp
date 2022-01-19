@@ -20,7 +20,7 @@ socket_builder<Node>::socket_builder(typename sock_traits::path_type sock_path)
 template <typename Node> socket_builder<Node> *socket_builder<Node>::socket() {
   sock->sd = ::socket(sock_traits::domain, socket_type, 0);
 
-  if (sockno(*sock) == -1)
+  if (!is_valid_socket(sock->sd))
     sock_err |= SockError::ERR_SOCKET;
 
   return this;
@@ -47,7 +47,15 @@ socket_builder<Node> *socket_builder<Node>::connect(SOCKET target_sd) {
   return this;
 }
 
+template <typename Node>
+socket_builder<Node> *socket_builder<Node>::listen(SOCKET target_sd) {
+}
+
+#ifdef SYS_API_LINUX
 template struct socket_builder<socket_node<struct sockaddr_un, SOCK_DGRAM>>;
+#endif
+
+template struct socket_builder<socket_node<struct sockaddr_in, SOCK_STREAM>>;
 
 } // namespace ip
 } // namespace wasl

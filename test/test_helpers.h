@@ -1,12 +1,12 @@
-#ifndef WASL__TEST_HELPERS_H
-#define WASL_TEST_TEST_HELPERS_H
+#ifndef WASL_TEST_HELPERS_H
+#define WASL_TEST_HELPERS_H
 
 #include <thread>
 
 #include <gtest/gtest.h>
-#if defined(_WIN32)
+#if defined(SYS_API_WIN32)
 
-#elif defined(__linux__)
+#elif defined(SYS_API_LINUX)
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -76,6 +76,6 @@ public:
   thread_guard &operator=(thread_guard const &) = delete;
 };
 
-#endif
+#endif // fork-based posix helpers
 
-#endif /* ifndef WASL__TEST_HELPERS_H */
+#endif /* ifndef WASL_TEST_HELPERS_H */
