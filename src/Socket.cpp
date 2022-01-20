@@ -1,8 +1,6 @@
 #include <wasl/Socket.h>
 
-#ifndef WASL_LISTEN_BACKLOG
-#define WASL_LISTEN_BACKLOG 50
-#endif
+
 
 namespace wasl
 {
@@ -11,7 +9,7 @@ namespace ip
 
 namespace {
 
-	// Unix sockers
+	// Unix sockets
 	template <typename Node, std::enable_if_t<std::is_same<struct sockaddr_un, typename Node::addr_type>::value, bool> = true>
 	int create_address(Node *node, typename Node::path_type socket_path) {
 			c_addr(node)->sun_family = Node::traits::domain;
@@ -30,7 +28,6 @@ namespace {
 	// Streams-based sockets
 	template <typename Node, std::enable_if_t<std::is_same<struct sockaddr_in, typename Node::addr_type>::value, bool> = true>
 	int create_address(Node *node, typename Node::path_type socket_path) {
-		std::cout << "test";
 			c_addr(node)->sin_family = Node::traits::domain;
 			c_addr(node)->sin_addr.s_addr = htonl(INADDR_ANY);
 			c_addr(node)->sin_port = htons(9877);
@@ -77,9 +74,9 @@ template <typename Node> socket_builder<Node> *socket_builder<Node>::connect(SOC
     return this;
 }
 
-template <typename Node> socket_builder<Node> *socket_builder<Node>::listen(SOCKET target_sd)
+template <typename Node> socket_builder<Node> *socket_builder<Node>::listen()
 {
-    if (::listen(target_sd, WASL_LISTEN_BACKLOG) == INVALID_SOCKET)
+    if (socket_listen(sock) == INVALID_SOCKET)
     {
         sock_err |= SockError::ERR_LISTEN;
     }

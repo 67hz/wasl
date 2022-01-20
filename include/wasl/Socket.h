@@ -27,6 +27,10 @@
 #include <unistd.h>
 #endif
 
+#ifndef WASL_LISTEN_BACKLOG
+#define WASL_LISTEN_BACKLOG 50
+#endif
+
 namespace wasl {
 namespace ip {
 
@@ -73,7 +77,7 @@ public:
     }
 
     // TODO check platform here
-    unlink(_addr->sun_path);
+    //unlink(_addr->sun_path);
   }
 
   inline friend constexpr bool is_open(const socket_node &node) noexcept {
@@ -120,6 +124,8 @@ AddrType get_address(SOCKET sfd) {
 }
 
 /// Connect a socket_node to a peer's socket descriptor
+/// \param node SocketNode
+/// \param link socket fd containing address to connect with
 template <typename T, EnableIfSocketType<typename T::addr_type> = true,
           socklen_t len = (sizeof(typename T::addr_type))>
 int socket_connect(const T *node, SOCKET link) {
@@ -127,8 +133,31 @@ int socket_connect(const T *node, SOCKET link) {
     return INVALID_SOCKET;
   }
 
-  auto addr = get_address<typename T::addr_type>(link);
-  return connect(sockno(*node), (SOCKADDR *)&(addr), sizeof(addr));
+  auto srv_addr = get_address<typename T::addr_type>(link);
+  //return connect(sockno(*node), (SOCKADDR *)&(srv_addr), sizeof(srv_addr));
+  return connect(sockno(*node), (SOCKADDR *)&(srv_addr), sizeof(srv_addr));
+}
+
+template <typename T, EnableIfSocketType<typename T::addr_type> = true>
+int socket_listen(const T *node) {
+	if (!is_valid_socket(sockno(*node)))
+		return INVALID_SOCKET;
+
+	return ::listen(sockno(*node), WASL_LISTEN_BACKLOG);
+}
+
+/// Accept a socket_node via a listening socket
+/// \return fd of accepted socket
+template <typename T, EnableIfSocketType<typename T::addr_type> = true,
+          socklen_t len = (sizeof(typename T::addr_type))>
+SOCKET socket_accept(T *listening_node) {
+  if (!listening_node) {
+    return INVALID_SOCKET;
+  }
+
+	auto socklen = len;
+	typename T::addr_type peer_addr;
+  return accept(sockno(*listening_node), (SOCKADDR *)(&peer_addr), &socklen);
 }
 
 template <typename SocketNode> struct socket_builder {
@@ -158,7 +187,7 @@ public:
 
   socket_builder *connect(SOCKET target_sd);
 
-  socket_builder *listen(SOCKET target_sd);
+  socket_builder *listen();
 
   explicit operator bool() const {
     return !local::toUType(sock_err) && is_open(*sock);
@@ -178,14 +207,32 @@ public:
 /// see Stevens UNPp34
 /// \tparam AddrType Any of struct sockaddr_x socket types e.g.: { sockaddr_un,
 /// sockaddr_in, ...}
-/// \tparam SockType type of socket used in socket() call
+/// \tparam SockType socket type used in socket() call
 /// e.g.: {SOCK_STREAM, SOCK_DGRAM, SOCK_RAW, ...}
 template <typename AddrType, int SockType,
+				 std::enable_if_t<std::is_same<AddrType, struct sockaddr_un>::value, bool> = true,
           typename sock_traits = socket_traits<AddrType>>
 auto make_socket(typename sock_traits::path_type sock_path) {
   auto socket{socket_node<AddrType, SockType>::create(sock_path)
                   ->socket()
                   ->bind()
+                  ->build()};
+
+  if (!socket) {
+    std::cerr << strerror(GET_SOCKERRNO()) << '\n';
+  }
+
+  return std::unique_ptr<socket_node<AddrType, SockType>>(std::move(socket));
+}
+
+template <typename AddrType, int SockType,
+				 std::enable_if_t<std::is_same<AddrType, struct sockaddr_in>::value, bool> = true,
+          typename sock_traits = socket_traits<AddrType>>
+auto make_socket(typename sock_traits::path_type sock_path) {
+  auto socket{socket_node<AddrType, SockType>::create(sock_path)
+                  ->socket()
+                  ->bind()
+									->listen()
                   ->build()};
 
   if (!socket) {
