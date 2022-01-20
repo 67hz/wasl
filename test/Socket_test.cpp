@@ -49,7 +49,8 @@ TEST(SockErrorFlags, LogicalOpsAreTrue) {
 	ASSERT_TRUE(toUType(err & SockError::ERR_BIND) != 0);
 }
 
-#if 0 // TODO move this to socket_stream test
+// TODO MOVE to sockstream tests
+#ifdef SYS_API_LINUX
 TEST(datagram_sockets, CanReadAndWrite) {
 	auto msg = "some_message"s;
 	auto srvUP { make_socket<sockaddr_un, SOCK_DGRAM>(srv_path) };

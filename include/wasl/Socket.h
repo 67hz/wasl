@@ -30,7 +30,7 @@
 namespace wasl {
 namespace ip {
 
-template <typename T, typename isPosix = void> struct socket_traits {};
+template <typename T> struct socket_traits {};
 
 template <> struct socket_traits<struct sockaddr_in> {
   using type = struct sockaddr_in;
@@ -73,7 +73,7 @@ public:
     }
 
     // TODO check platform here
-    unlink(_addr.sun_path);
+    unlink(_addr->sun_path);
   }
 
   inline friend constexpr bool is_open(const socket_node &node) noexcept {
@@ -85,8 +85,8 @@ public:
   }
 
   /// Return the underlying socket address struct
-  inline friend constexpr addr_type c_addr(const socket_node &node) noexcept {
-    return node._addr;
+  inline friend constexpr addr_type* c_addr(socket_node *node) noexcept {
+    return node->_addr.get();
   }
 
   static auto create(path_type spath) {
@@ -96,7 +96,8 @@ public:
 private:
   friend socket_builder<type>;
 
-  addr_type _addr;           // the underlying socket struct
+	std::unique_ptr<addr_type> _addr {std::make_unique<addr_type>()};           // the underlying socket struct
+
   SOCKET sd{INVALID_SOCKET}; // a socket descriptor
 
   /// Construction is enforced through socket_builder to ensure valid
@@ -131,6 +132,7 @@ int socket_connect(const T *node, SOCKET link) {
 }
 
 template <typename SocketNode> struct socket_builder {
+public:
   static constexpr int socket_type = SocketNode::socket_type;
   using node_type = SocketNode;
   using sock_traits = socket_traits<typename SocketNode::addr_type>;
@@ -139,10 +141,9 @@ template <typename SocketNode> struct socket_builder {
 
   // indicates where errors occur in build pipeline, clients should check
   // errno with GET_SOCKERRNO() to handle
-  SockError sock_err = SockError::ERR_NONE;
+	SockError sock_err = SockError::ERR_NONE;
 
-  // TODO SFINAE or dispatch if family = AF_UNIX/AF_LOCAL
-  explicit socket_builder(typename sock_traits::path_type sock_path);
+	explicit socket_builder(typename sock_traits::path_type socket_path);
 
   auto get_error() {
 #ifndef NDEBUG
@@ -175,7 +176,7 @@ template <typename SocketNode> struct socket_builder {
 /// passive_opens (e.g., TCP servers) adding listen() to builder chain
 /// active opens (e.g., client sockets) adding connect() to builder chain
 /// see Stevens UNPp34
-/// \tparam AddrType Any of struct addr_x socket types e.g.: { sockaddr_un,
+/// \tparam AddrType Any of struct sockaddr_x socket types e.g.: { sockaddr_un,
 /// sockaddr_in, ...}
 /// \tparam SockType type of socket used in socket() call
 /// e.g.: {SOCK_STREAM, SOCK_DGRAM, SOCK_RAW, ...}
