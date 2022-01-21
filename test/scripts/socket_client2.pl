@@ -2,7 +2,7 @@
 
 ###
 #
-# A TCP client
+# A lightweight socketed test client
 #
 # usage: ./socket_client.pl {localhost} {port} {message}
 #
@@ -11,6 +11,8 @@
 use strict;
 use warnings;
 use IO::Socket;
+
+
 
 my $socket = new IO::Socket::INET (
 	PeerAddr => shift || 'localhost',

@@ -2,9 +2,9 @@
 
 ###
 #
-# A TCP client
+# A lightweight UDP client
 #
-# usage: ./socket_client.pl {localhost} {port} {message}
+# usage: ./udp_client.pl {path} {message}
 #
 ##
 
@@ -12,11 +12,8 @@ use strict;
 use warnings;
 use IO::Socket;
 
-my $socket = new IO::Socket::INET (
-	PeerAddr => shift || 'localhost',
-	PeerPort => shift || '9877',
-	Proto => 'tcp',
-);
+$handle = IO::Socket::INET->new(Proto => "udp"))
+	or die "socket: $!";
 
 die "Could not create socket: $!\n" unless $socket;
 

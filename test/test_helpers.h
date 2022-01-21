@@ -4,6 +4,9 @@
 #include <thread>
 
 #include <gtest/gtest.h>
+
+#include <wasl/Common.h>
+
 #if defined(SYS_API_WIN32)
 
 #elif defined(SYS_API_LINUX)
@@ -61,6 +64,7 @@ auto fork_and_wait(F f, Types&&... args) {
   fw_impl();
 }
 
+
 class thread_guard {
   std::thread &t;
 
@@ -77,5 +81,29 @@ public:
 };
 
 #endif // fork-based posix helpers
+namespace wasl {
+
+template <typename P,
+				 EnableIfSamePlatform<P, posix> = true>
+constexpr int run_process(const char* command) {
+	int ret = system(command);
+	/*
+	if (WIFSIGNALED(ret) &&
+			(WTERMSIG(ret) == SIGINT || WTERMSIG(ret) == SIGQUIT))
+			break;
+			*/
+	return 0;
+}
+
+// use CreateProcess in lieue of fork()
+template <typename P,
+				 EnableIfSamePlatform<P, windows> = true>
+constexpr int run_process(const char* command) {
+	return 0;
+}
+
+
+
+} // namespace wasl
 
 #endif /* ifndef WASL_TEST_HELPERS_H */

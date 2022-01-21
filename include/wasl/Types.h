@@ -90,19 +90,13 @@ public:
 };
 
 namespace local {
-/// Get underlying type from enum - see Modern Meyers p72
+		/// Get underlying type from enum - see Modern Meyers p72
 template <typename Enum> constexpr auto toUType(Enum enumerator) noexcept {
   return static_cast<std::underlying_type_t<Enum>>(enumerator);
 }
 } // namespace local
 
 namespace ip {
-
-enum class SockFlags : uint32_t {
-  DATAGRAM = 0x1,  // !DATAGRAM <= stream based (default)
-  INTERHOST = 0x2, // interhost communication enabled
-};
-WASL_MARK_AS_BITMASK_ENUM(SockFlags);
 
 enum class SockError : uint32_t {
   ERR_NONE = 0x0,
@@ -112,7 +106,6 @@ enum class SockError : uint32_t {
   ERR_LISTEN = 0x8,
   ERR_PATH_INVAL = 0x10
 };
-
 WASL_MARK_AS_BITMASK_ENUM(SockError);
 } // namespace ip
 

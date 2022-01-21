@@ -9,10 +9,10 @@ namespace ip
 
 namespace {
 
-	// Unix sockets
-	template <typename Node, std::enable_if_t<std::is_same<struct sockaddr_un, typename Node::addr_type>::value, bool> = true>
-	int create_address(Node *node, typename Node::path_type socket_path) {
-			c_addr(node)->sun_family = Node::traits::domain;
+	// Unix domain sockets
+	template <typename SocketNode, std::enable_if_t<std::is_same<struct sockaddr_un, typename SocketNode::traits::type>::value, bool> = true>
+	int create_address(SocketNode *node, path_type socket_path) {
+			c_addr(node)->sun_family = SocketNode::traits::value;
 			if (strlen(socket_path) > sizeof(c_addr(node)->sun_path) - 1)
 			{
 				return INVALID_SOCKET;
@@ -25,24 +25,28 @@ namespace {
 			return 0;
 	}
 
-	// Streams-based sockets
-	template <typename Node, std::enable_if_t<std::is_same<struct sockaddr_in, typename Node::addr_type>::value, bool> = true>
-	int create_address(Node *node, typename Node::path_type socket_path) {
-			c_addr(node)->sin_family = Node::traits::domain;
-			c_addr(node)->sin_addr.s_addr = htonl(INADDR_ANY);
-			c_addr(node)->sin_port = htons(9877);
-			return 0;
-	}
 } // namespace anon
 
-template <typename Node> socket_builder<Node>::socket_builder(typename sock_traits::path_type socket_path)
-	: sock { gsl::owner<node_type *>(new node_type)} {
-		create_address(sock, socket_path);
-	}
+// TCP sockets
+template <typename SocketNode, typename IsTCP>
+socket_builder<SocketNode, IsTCP>::socket_builder(int port, path_type socket_path)
+	: sock { new SocketNode} {
+			c_addr(sock)->sin_family = SocketNode::traits::value;
+			in_addr_t addr;
 
-template <typename Node> socket_builder<Node> *socket_builder<Node>::socket()
+			if (strlen(socket_path) &&
+					inet_pton(SocketNode::traits::value, socket_path, &addr) != 0) {
+					c_addr(sock)->sin_addr.s_addr = addr;
+			} else {
+				c_addr(sock)->sin_addr.s_addr = htonl(INADDR_ANY);
+			}
+
+			c_addr(sock)->sin_port = htons(port);
+}
+
+template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::socket()
 {
-    sock->sd = ::socket(sock_traits::domain, socket_type, 0);
+    sock->sd = ::socket(traits::value, socket_type, 0);
 
     if (!is_valid_socket(sock->sd))
         sock_err |= SockError::ERR_SOCKET;
@@ -50,10 +54,10 @@ template <typename Node> socket_builder<Node> *socket_builder<Node>::socket()
     return this;
 }
 
-template <typename Node> socket_builder<Node> *socket_builder<Node>::bind()
+template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::bind()
 {
     if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(c_addr(sock)),
-               sizeof(typename sock_traits::type)) == -1)
+               sizeof(typename traits::type)) == -1)
     {
 
 #ifndef NDEBUG
@@ -65,7 +69,7 @@ template <typename Node> socket_builder<Node> *socket_builder<Node>::bind()
     return this;
 }
 
-template <typename Node> socket_builder<Node> *socket_builder<Node>::connect(SOCKET target_sd)
+template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::connect(SOCKET target_sd)
 {
     if (socket_connect(sock, target_sd) == INVALID_SOCKET)
     {
@@ -74,7 +78,7 @@ template <typename Node> socket_builder<Node> *socket_builder<Node>::connect(SOC
     return this;
 }
 
-template <typename Node> socket_builder<Node> *socket_builder<Node>::listen()
+template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::listen()
 {
     if (socket_listen(sock) == INVALID_SOCKET)
     {
@@ -84,10 +88,10 @@ template <typename Node> socket_builder<Node> *socket_builder<Node>::listen()
 }
 
 #ifdef SYS_API_LINUX
-template struct socket_builder<socket_node<struct sockaddr_un, SOCK_DGRAM>>;
+template struct socket_builder<socket_node<AF_UNIX, SOCK_DGRAM>>;
 #endif
 
-template struct socket_builder<socket_node<struct sockaddr_in, SOCK_STREAM>>;
+template struct socket_builder<socket_node<AF_INET , SOCK_STREAM>>;
 
 } // namespace ip
 } // namespace wasl
