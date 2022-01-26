@@ -10,7 +10,7 @@ namespace ip
 namespace {
 
 	// Unix domain sockets
-	template <typename SocketNode, std::enable_if_t<std::is_same<struct sockaddr_un, typename SocketNode::traits::type>::value, bool> = true>
+	template <typename SocketNode, std::enable_if_t<std::is_same<struct sockaddr_un, typename SocketNode::traits::addr_type>::value, bool> = true>
 	int create_address(SocketNode *node, path_type socket_path) {
 			c_addr(node)->sun_family = SocketNode::traits::value;
 			if (strlen(socket_path) > sizeof(c_addr(node)->sun_path) - 1)
@@ -57,7 +57,7 @@ template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_bui
 template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::bind()
 {
     if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(c_addr(sock)),
-               sizeof(typename traits::type)) == -1)
+               sizeof(typename traits::addr_type)) == -1)
     {
 
 #ifndef NDEBUG

@@ -40,24 +40,25 @@ using path_type = gsl::czstring<>;
 template <int SocketFamily>
 struct socket_traits {
 	static constexpr int value = SocketFamily;
+	using addr_type = struct sockaddr_storage;
 };
 
 template <>
 struct socket_traits<AF_INET> {
 	static constexpr int value = AF_INET;
-	using type = struct sockaddr_in;
+	using addr_type = struct sockaddr_in;
 };
 
 template <>
 struct socket_traits<AF_INET6> {
 	static constexpr int value = AF_INET6;
-	using type = struct sockaddr_in6;
+	using addr_type = struct sockaddr_in6;
 };
 
 template <>
 struct socket_traits<AF_LOCAL> { // == AF_UNIX
 	static constexpr int value = AF_LOCAL;
-	using type = struct sockaddr_un;
+	using addr_type = struct sockaddr_un;
 };
 
 namespace {
@@ -110,8 +111,8 @@ auto get_address (SOCKET sfd)
 /// Connect a socket_node to a peer's socket descriptor
 /// \param node SocketNode
 /// \param link socket fd containing address to connect with
-template <typename T, EnableIfSocketType<typename T::traits::type> = true,
-          socklen_t len = (sizeof (typename T::traits::type))>
+template <typename T, EnableIfSocketType<typename T::traits::addr_type> = true,
+          socklen_t len = (sizeof (typename T::traits::addr_type))>
 int
 socket_connect (const T *node, SOCKET link)
 {
@@ -125,7 +126,7 @@ socket_connect (const T *node, SOCKET link)
 
 }
 
-template <typename T, EnableIfSocketType<typename T::traits::type> = true>
+template <typename T, EnableIfSocketType<typename T::traits::addr_type> = true>
 int
 socket_listen (const T *node)
 {
@@ -137,8 +138,8 @@ socket_listen (const T *node)
 
 /// Accept a socket_node via a listening socket
 /// \return fd of accepted socket
-template <typename T, EnableIfSocketType<typename T::traits::type> = true,
-          socklen_t len = (sizeof (typename T::traits::type))>
+template <typename T, EnableIfSocketType<typename T::traits::addr_type> = true,
+          socklen_t len = (sizeof (typename T::traits::addr_type))>
 SOCKET
 socket_accept (T *listening_node)
 {
@@ -148,7 +149,7 @@ socket_accept (T *listening_node)
     }
 
   auto socklen = len;
-  typename T::traits::type peer_addr;
+  typename T::traits::addr_type peer_addr;
   return accept (sockno (*listening_node), (SOCKADDR *)(&peer_addr), &socklen);
 }
 
@@ -202,7 +203,7 @@ public:
   /// Returns a pointer to the underlying socket address struct
   /// \note If the socket is bound, getsockname syscall will also return the
 	/// associated address struct.
-  inline friend constexpr typename traits::type*
+  inline friend constexpr typename traits::addr_type*
   c_addr (socket_node *node) noexcept
   {
     return node->_addr.get ();
@@ -236,8 +237,8 @@ private:
 	/// sockaddr.sa_family holds uint type e.g. AF_INET
 	/// \note see man sys_socket.h for sockaddr_storage. this could be used to
 	/// store a generic address struct and remove the family template param.
-  std::unique_ptr<typename traits::type> _addr{
-    std::make_unique<typename traits::type> ()
+  std::unique_ptr<typename traits::addr_type> _addr{
+    std::make_unique<typename traits::addr_type> ()
   }; // the underlying socket struct
 
   SOCKET sd{ INVALID_SOCKET }; // a socket descriptor
@@ -354,7 +355,7 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
 
 	socket_builder *bind () {
     if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(c_addr(sock)),
-               sizeof(typename traits::type)) == -1)
+               sizeof(typename traits::addr_type)) == -1)
     {
 
 #ifndef NDEBUG
@@ -386,7 +387,7 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
 /// \tparam SocketType socket type used in socket() call
 /// e.g.: {SOCK_STREAM, SOCK_DGRAM, SOCK_RAW, ...}
 template <int Family, int SocketType,
-          std::enable_if_t<std::is_same<typename socket_traits<Family>::type, struct sockaddr_un>::value,
+          std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_un>::value,
                            bool> = true >
 auto
 make_socket (path_type sock_path)
@@ -406,7 +407,7 @@ make_socket (path_type sock_path)
 }
 
 template <int Family, int SocketType,
-          std::enable_if_t<std::is_same<typename socket_traits<Family>::type, struct sockaddr_in>::value,
+          std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_in>::value,
                            bool> = true >
 auto
 make_socket (int port, path_type sock_path)
