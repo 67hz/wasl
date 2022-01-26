@@ -1,5 +1,4 @@
 #include <wasl/Socket.h>
-#include <wasl/SockStream.h>
 #include <string>
 #include <memory>
 

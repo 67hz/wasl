@@ -113,7 +113,7 @@ auto get_address (SOCKET sfd)
 /// \param link socket fd containing address to connect with
 template <typename T, EnableIfSocketType<typename T::traits::addr_type> = true,
           socklen_t len = (sizeof (typename T::traits::addr_type))>
-int
+SOCKET
 socket_connect (const T *node, SOCKET link)
 {
   if (!node)
@@ -127,7 +127,7 @@ socket_connect (const T *node, SOCKET link)
 }
 
 template <typename T, EnableIfSocketType<typename T::traits::addr_type> = true>
-int
+SOCKET
 socket_listen (const T *node)
 {
   if (!is_valid_socket (sockno (*node)))
