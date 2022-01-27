@@ -79,29 +79,16 @@ int sockfd_to_family(SOCKET sfd) {
 	return addr.ss_family;
 }
 
-/// Get a socket's address struct
-/// \tparam AddrType struct type of socket address
-/// \return socket address struct, e.g. struct sockaddr_in
+/// Get a socket's address struct returned as a sockaddr_storage struct.
+/// Caller should cast returned struct to protocol-specific struct,
+/// e.g., struct sockaddr_in.
+/// \return generic sockaddr_storage struct.
 auto get_address (SOCKET sfd)
 {
-	auto family = sockfd_to_family(sfd);
+//	auto family = sockfd_to_family(sfd);
 	struct sockaddr_storage res;
   memset (&res, 0, sizeof (res));
-  socklen_t socklen;
-
-	switch( family) {
-		case AF_INET:
-			socklen = sizeof(struct sockaddr_in);
-			break;
-		case AF_INET6:
-			socklen = sizeof(struct sockaddr_in6);
-			break;
-		case AF_UNIX:
-			socklen = sizeof(struct sockaddr_un);
-			break;
-		default:
-			socklen = sizeof(struct sockaddr_storage);
-	}
+  socklen_t socklen = sizeof(res);
 
   getsockname (sfd, (SOCKADDR *)&res, &socklen);
 
@@ -114,7 +101,7 @@ auto get_address (SOCKET sfd)
 template <typename T, EnableIfSocketType<typename T::traits::addr_type> = true,
           socklen_t len = (sizeof (typename T::traits::addr_type))>
 SOCKET
-socket_connect (const T *node, SOCKET link)
+socket_connect (const T &node, SOCKET link)
 {
   if (!node)
     {
@@ -122,18 +109,18 @@ socket_connect (const T *node, SOCKET link)
     }
 
   auto srv_addr = get_address(link);
-  return connect (sockno (*node), (SOCKADDR *)&(srv_addr), sizeof (srv_addr));
+  return connect (sockno (node), (SOCKADDR *)&(srv_addr), sizeof (srv_addr));
 
 }
 
 template <typename T, EnableIfSocketType<typename T::traits::addr_type> = true>
 SOCKET
-socket_listen (const T *node)
+socket_listen (const T &node)
 {
-  if (!is_valid_socket (sockno (*node)))
+  if (!is_valid_socket (sockno (node)))
     return INVALID_SOCKET;
 
-  return ::listen (sockno (*node), WASL_LISTEN_BACKLOG);
+  return ::listen (sockno (node), WASL_LISTEN_BACKLOG);
 }
 
 /// Accept a socket_node via a listening socket
@@ -161,8 +148,7 @@ socket_accept (T *listening_node)
 
 template <typename SocketNode, typename isTCP = void> struct socket_builder;
 
-/// RAII Wrapper for a socket owning the socket's address struct and
-/// close()'s socket connection on destruction.
+/// RAII Wrapper for a socket that close()'s socket connection on destruction.
 /// \tparam Family socket family (address protocol suite)
 /// \tparam SocketType  Type of socket, e.g., SOCK_DGRAM
 /// \TODO check is_integral_type or use value param
@@ -200,46 +186,26 @@ public:
     return node.sd;
   }
 
-  /// Returns a pointer to the underlying socket address struct
-  /// \note If the socket is bound, getsockname syscall will also return the
-	/// associated address struct.
-  inline friend constexpr typename traits::addr_type*
-  c_addr (socket_node *node) noexcept
+  /// Get a pointer to the associated socket address struct
+  inline friend constexpr std::unique_ptr<typename traits::addr_type>
+  address (const socket_node &node) noexcept
   {
-    return node->_addr.get ();
+		auto addr = new sockaddr_storage;
+		*addr = get_address(node.sd);
+		return std::unique_ptr<typename traits::addr_type>(
+				reinterpret_cast<typename traits::addr_type*>(addr));
   }
 
 	/// \return socket_builder instance
   static auto
-  create (int port)
+  create ()
   {
-    return std::make_unique<socket_builder<socket_node<Family, SocketType>>>(port);
+    return std::make_unique<socket_builder<socket_node<Family, SocketType>>>();
   }
-
-
-  static auto
-  create (path_type spath)
-  {
-    return std::make_unique<socket_builder<socket_node<Family, SocketType>>>(spath);
-  }
-
-  static auto
-  create (int port, path_type spath)
-  {
-    return std::make_unique<socket_builder<socket_node<Family, SocketType>>>(port, spath);
-  }
-
 
 private:
   friend socket_builder<socket_node<Family, SocketType>>;
 
-  /// \TODO use getsockname(sd) instead of holding _addr
-	/// sockaddr.sa_family holds uint type e.g. AF_INET
-	/// \note see man sys_socket.h for sockaddr_storage. this could be used to
-	/// store a generic address struct and remove the family template param.
-  std::unique_ptr<typename traits::addr_type> _addr{
-    std::make_unique<typename traits::addr_type> ()
-  }; // the underlying socket struct
 
   SOCKET sd{ INVALID_SOCKET }; // a socket descriptor
 
@@ -259,16 +225,13 @@ public:
   static constexpr int socket_type = SocketNode::socket_type;
 	using traits = typename SocketNode::traits;
 
-	SocketNode* sock;
+	std::unique_ptr<SocketNode> sock;
 
   // indicates where errors occur in build pipeline, clients should check
   // errno with GET_SOCKERRNO() to handle
   SockError sock_err = SockError::ERR_NONE;
 
-	// TCP sockets require a port
-  explicit socket_builder (path_type socket_path) = delete;
-
-  socket_builder (int port, path_type socket_path = "");
+  socket_builder ();
 
   auto
   get_error ()
@@ -281,9 +244,7 @@ public:
 
   socket_builder *socket ();
 
-  socket_builder *bind ();
-
-  socket_builder *connect (SOCKET target_sd);
+  socket_builder *bind (int service, path_type host = "");
 
   socket_builder *listen ();
 
@@ -292,35 +253,31 @@ public:
     return !local::toUType (sock_err) && is_open (*sock);
   }
 
-//  explicit operator family& () { return sock; }
-
 	/// \return new'd ptr. Caller has responsibility to wrap in owning ptr.
-	SocketNode*
+	std::unique_ptr<SocketNode>
   build ()
   {
-    return sock;
+    return std::move(sock);
   }
 };
 
-template <typename SocketNode>
-int create_dgram_address(SocketNode sock, path_type socket_path, int2Type<AF_UNIX>) {
-	c_addr(sock)->sun_family = AF_UNIX;
-	if (strlen(socket_path) > sizeof(c_addr(sock)->sun_path) - 1)
-	{
-		return INVALID_SOCKET;
-	}
+struct sockaddr_un create_dgram_address(path_type host, int2Type<AF_UNIX>) {
+	struct sockaddr_un addr;
+	addr.sun_family = AF_UNIX;
+	assert( (strlen(host) < sizeof(addr.sun_path) - 1));
 
 	// remove path in case artifacts were left from a previous run
-	unlink(socket_path);
+	unlink(host);
 
-	strncpy(c_addr(sock)->sun_path, socket_path, sizeof(c_addr(sock)->sun_path) - 1);
-	return 0;
+	strncpy(addr.sun_path, host, sizeof(addr.sun_path) - 1);
+	return addr;
 }
 
-template <typename SocketNode>
-int create_dgram_address(SocketNode sock, path_type socket_path, int2Type<AF_INET>) {
+struct sockaddr_in create_dgram_address(path_type host, int2Type<AF_INET>) {
+	struct sockaddr_in addr;
+	addr.sin_family = AF_INET;
 	std::cout << "UDP datagrams work" << '\n';
-	return 0;
+	return addr;
 }
 
 
@@ -329,19 +286,17 @@ template <typename SocketNode>
 struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Type<SOCK_DGRAM>, int2Type<SocketNode::socket_type>>::value>> {
 	using traits = typename SocketNode::traits;
 
-	SocketNode* sock;
+	std::unique_ptr<SocketNode> sock;
 
   // indicates where errors occur in build pipeline, clients should check
   // errno with GET_SOCKERRNO() to handle
   SockError sock_err = SockError::ERR_NONE;
-  explicit socket_builder () = default;
-  explicit socket_builder (int port) {}
 
-  explicit socket_builder (path_type socket_path)
+  socket_builder ()
 		: sock { new SocketNode }
 	{
 	// tag dispatch based on socket family
-		create_dgram_address(sock, socket_path, int2Type<traits::value>());
+		//create_dgram_address(sock, host, int2Type<traits::value>());
 	}
 
   socket_builder *socket () {
@@ -353,8 +308,10 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
     return this;
 	}
 
-	socket_builder *bind () {
-    if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(c_addr(sock)),
+	socket_builder *bind (path_type host) {
+	// tag dispatch based on socket family
+		auto addr = create_dgram_address(host, int2Type<traits::value>());
+    if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(&addr),
                sizeof(typename traits::addr_type)) == -1)
     {
 
@@ -368,16 +325,16 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
 	}
 
 
-	SocketNode*
+	std::unique_ptr<SocketNode>
   build ()
   {
-    return sock;
+    return std::move(sock);
   }
 };
 
 
 
-/// create a unique_ptr to a socket_node
+/// makers for creating a unique_ptr to a socket_node
 /// TODO add overloads for:
 /// passive_opens (e.g., TCP servers) adding listen() to builder chain
 /// active opens (e.g., client sockets) adding connect() to builder chain
@@ -386,15 +343,16 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
 /// sockaddr_in, ...}
 /// \tparam SocketType socket type used in socket() call
 /// e.g.: {SOCK_STREAM, SOCK_DGRAM, SOCK_RAW, ...}
+/// Unix domain Datagram sockets maker
 template <int Family, int SocketType,
           std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_un>::value,
                            bool> = true >
 auto
 make_socket (path_type sock_path)
 {
-  auto socket{ socket_node<Family, SocketType>::create (sock_path)
+  auto socket{ socket_node<Family, SocketType>::create ()
                    ->socket ()
-                   ->bind ()
+                   ->bind (sock_path)
                    ->build () };
 
   if (!socket)
@@ -406,15 +364,16 @@ make_socket (path_type sock_path)
       std::move (socket));
 }
 
+/// TCP sockets maker
 template <int Family, int SocketType,
           std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_in>::value,
                            bool> = true >
 auto
-make_socket (int port, path_type sock_path)
+make_socket (int service, path_type sock_path)
 {
-  auto socket{ socket_node<Family, SocketType>::create (port, sock_path)
+  auto socket{ socket_node<Family, SocketType>::create ()
                    ->socket ()
-                   ->bind ()
+                   ->bind (service, sock_path)
                    ->listen ()
                    ->build () };
 

@@ -1,48 +1,14 @@
 #include <wasl/Socket.h>
 
-
-
 namespace wasl
 {
 namespace ip
 {
 
-namespace {
-
-	// Unix domain sockets
-	template <typename SocketNode, std::enable_if_t<std::is_same<struct sockaddr_un, typename SocketNode::traits::addr_type>::value, bool> = true>
-	int create_address(SocketNode *node, path_type socket_path) {
-			c_addr(node)->sun_family = SocketNode::traits::value;
-			if (strlen(socket_path) > sizeof(c_addr(node)->sun_path) - 1)
-			{
-				return INVALID_SOCKET;
-			}
-
-			// remove path in case artifacts were left from a previous run
-			unlink(socket_path);
-
-			strncpy(c_addr(node)->sun_path, socket_path, sizeof(c_addr(node)->sun_path) - 1);
-			return 0;
-	}
-
-} // namespace anon
-
 // TCP sockets
 template <typename SocketNode, typename IsTCP>
-socket_builder<SocketNode, IsTCP>::socket_builder(int port, path_type socket_path)
-	: sock { new SocketNode} {
-			c_addr(sock)->sin_family = SocketNode::traits::value;
-			in_addr_t addr;
-
-			if (strlen(socket_path) &&
-					inet_pton(SocketNode::traits::value, socket_path, &addr) != 0) {
-					c_addr(sock)->sin_addr.s_addr = addr;
-			} else {
-				c_addr(sock)->sin_addr.s_addr = htonl(INADDR_ANY);
-			}
-
-			c_addr(sock)->sin_port = htons(port);
-}
+socket_builder<SocketNode, IsTCP>::socket_builder()
+	: sock { new SocketNode} { }
 
 template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::socket()
 {
@@ -54,9 +20,22 @@ template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_bui
     return this;
 }
 
-template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::bind()
+template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::bind(int service, path_type host)
 {
-    if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(c_addr(sock)),
+		typename traits::addr_type addr;
+		addr.sin_family = traits::value;
+		in_addr_t res_addr;
+
+		if (strlen(host) &&
+				inet_pton(traits::value, host, &res_addr) != 0) {
+				addr.sin_addr.s_addr = res_addr;
+		} else {
+			addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		}
+
+		addr.sin_port = htons(service);
+
+    if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(&addr),
                sizeof(typename traits::addr_type)) == -1)
     {
 
@@ -69,18 +48,9 @@ template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_bui
     return this;
 }
 
-template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::connect(SOCKET target_sd)
-{
-    if (socket_connect(sock, target_sd) == INVALID_SOCKET)
-    {
-        sock_err |= SockError::ERR_CONNECT;
-    }
-    return this;
-}
-
 template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::listen()
 {
-    if (socket_listen(sock) == INVALID_SOCKET)
+    if (socket_listen(*sock) == INVALID_SOCKET)
     {
         sock_err |= SockError::ERR_LISTEN;
     }

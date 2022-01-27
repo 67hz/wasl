@@ -23,28 +23,30 @@ using socket_dgram = socket_node<AF_INET, SOCK_DGRAM>;
 
 TEST(socket_utils, GetAddressFromSocketDescriptor) {
 	std::unique_ptr<socket_tcp> sock { socket_tcp::
-		create(9877, srv_addr)->socket()->bind()->build() };
+		create()->socket()->bind(9877, srv_addr)->build() };
 	auto addr = get_address(sockno(*sock));
 	in_addr ip;
 	auto res = inet_pton(AF_INET, srv_addr, &ip);
-	ASSERT_EQ(ip.s_addr, c_addr(sock.get())->sin_addr.s_addr);
+	auto SA = address(*sock);
+	ASSERT_EQ(ip.s_addr, SA->sin_addr.s_addr);
+	ASSERT_EQ(ip.s_addr, SA->sin_addr.s_addr);
 	auto res_sockaddr = reinterpret_cast<struct sockaddr_in*>(&addr);
-	ASSERT_EQ(res_sockaddr->sin_port, c_addr(sock.get())->sin_port);
+	ASSERT_EQ(res_sockaddr->sin_port, SA->sin_port);
 
 	// convert addresses back to text form and check string equality
   char res_nwbuf[INET_ADDRSTRLEN];
   char nwbuf[INET_ADDRSTRLEN];
 	auto res_nwaddr = inet_ntop(AF_INET, &(res_sockaddr->sin_addr), res_nwbuf, INET_ADDRSTRLEN);
-	auto nw_addr = inet_ntop(AF_INET, &(c_addr(sock.get())->sin_addr), nwbuf, INET_ADDRSTRLEN);
+	auto nw_addr = inet_ntop(AF_INET, &(SA->sin_addr), nwbuf, INET_ADDRSTRLEN);
 	ASSERT_STREQ(res_nwbuf, nwbuf);
 }
 
+
 TEST(socket_utils, GetSocketFamilyFromSocketDescriptor) {
-	auto raw_sock_ptr { socket_tcp::
-		create(9877)->socket()->build() };
-	auto family = sockfd_to_family(sockno(*raw_sock_ptr));
+	auto sock_uptr { socket_tcp::
+		create()->socket()->build() };
+	auto family = sockfd_to_family(sockno(*sock_uptr));
 	ASSERT_EQ(family, AF_INET);
-	delete raw_sock_ptr;
 }
 
 #ifdef SYS_API_LINUX
@@ -52,7 +54,7 @@ using socket_local = socket_node<AF_UNIX, SOCK_DGRAM>;
 
 TEST(socket_builder_unix_domain, CanBuildUnixDomainDatagram) {
 	std::unique_ptr<socket_local> sock { socket_local::
-		create(srv_path)->socket()->build() };
+		create()->socket()->bind(srv_path)->build() };
 
 	ASSERT_TRUE(is_open(*sock));
 	ASSERT_NE(sockno(*sock), INVALID_SOCKET);
@@ -65,7 +67,6 @@ TEST(socket_builder_unix_domain, MakeHelperUnixDomainDatagram) {
   ASSERT_TRUE(is_open(*sock));
 }
 #endif
-
 
 
 #if 0
@@ -105,9 +106,9 @@ TEST(SockErrorFlags, CanStoreErrorFlags) {
 
 TEST(socket_builder, CanBuildTCPSocketWithPortOnly) {
 	std::unique_ptr<socket_tcp> sockUP { socket_tcp::
-    create(9877)->socket()->build() };
+    create()->socket()->bind(9877)->build() };
 
-	socket_listen(sockUP.get());
+	socket_listen(*sockUP);
 
 	ASSERT_NE(sockno(*sockUP), INVALID_SOCKET);
 	ASSERT_TRUE(is_open(*sockUP));
@@ -115,9 +116,9 @@ TEST(socket_builder, CanBuildTCPSocketWithPortOnly) {
 
 TEST(socket_builder, CanBuildTCPSocketWithPortAndIPAddress) {
 	std::unique_ptr<socket_tcp> sockUP { socket_tcp::
-    create(9877, srv_addr)->socket()->build() };
+    create()->socket()->bind(9877, srv_addr)->build() };
 
-	socket_listen(sockUP.get());
+	socket_listen(*sockUP);
 
 	ASSERT_TRUE(is_open(*sockUP));
 }
@@ -143,5 +144,7 @@ TEST(tcp_sockets, CanReceiveDataFromClient) {
 	recvfrom(client_fd ,buf, 256, 0, NULL, NULL);
 	ASSERT_TRUE(strstr(buf, msg.c_str()));
 }
+
+
 
 
