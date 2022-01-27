@@ -73,3 +73,4 @@ package_add_test_with_libraries(vproxy_test VirtualProxy_test.cpp Wasl::Wasl "${
 package_add_test_with_libraries(iomux_test IOMultiplexer_test.cpp wasl "${PROJECT_DIR}")
 package_add_test_with_libraries(socket_test Socket_test.cpp wasl "${PROJECT_DIR}")
 package_add_test_with_libraries(socketstream_test SocketStream_test.cpp wasl "${PROJECT_DIR}")
+

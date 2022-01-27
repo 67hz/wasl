@@ -55,11 +55,13 @@ struct socket_traits<AF_INET6> {
 	using addr_type = struct sockaddr_in6;
 };
 
+#ifdef SYS_API_LINUX
 template <>
 struct socket_traits<AF_LOCAL> { // == AF_UNIX
 	static constexpr int value = AF_LOCAL;
 	using addr_type = struct sockaddr_un;
 };
+#endif // SYS_API_LINUX
 
 namespace {
 
