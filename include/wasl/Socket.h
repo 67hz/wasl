@@ -246,7 +246,7 @@ public:
 
   socket_builder *socket ();
 
-  socket_builder *bind (int service, path_type host = "");
+  socket_builder *bind (path_type service, path_type host = "");
 
   socket_builder *listen ();
 
@@ -371,7 +371,7 @@ template <int Family, int SocketType,
           std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_in>::value,
                            bool> = true >
 auto
-make_socket (int service, path_type sock_path)
+make_socket (path_type service, path_type sock_path)
 {
   auto socket{ socket_node<Family, SocketType>::create ()
                    ->socket ()

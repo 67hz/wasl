@@ -23,7 +23,7 @@ using socket_dgram = socket_node<AF_INET, SOCK_DGRAM>;
 
 TEST(socket_utils, GetAddressFromSocketDescriptor) {
 	std::unique_ptr<socket_tcp> sock { socket_tcp::
-		create()->socket()->bind(9877, srv_addr)->build() };
+		create()->socket()->bind("9877", srv_addr)->build() };
 	auto addr = get_address(sockno(*sock));
 	in_addr ip;
 	auto res = inet_pton(AF_INET, srv_addr, &ip);
@@ -106,7 +106,7 @@ TEST(SockErrorFlags, CanStoreErrorFlags) {
 
 TEST(socket_builder, CanBuildTCPSocketWithPortOnly) {
 	std::unique_ptr<socket_tcp> sockUP { socket_tcp::
-    create()->socket()->bind(9877)->build() };
+    create()->socket()->bind("9877")->build() };
 
 	socket_listen(*sockUP);
 
@@ -116,7 +116,7 @@ TEST(socket_builder, CanBuildTCPSocketWithPortOnly) {
 
 TEST(socket_builder, CanBuildTCPSocketWithPortAndIPAddress) {
 	std::unique_ptr<socket_tcp> sockUP { socket_tcp::
-    create()->socket()->bind(9877, srv_addr)->build() };
+    create()->socket()->bind("9877", srv_addr)->build() };
 
 	socket_listen(*sockUP);
 
@@ -128,7 +128,7 @@ TEST(socket_builder, CanBuildTCPSocketWithPortAndIPAddress) {
 TEST(tcp_sockets, CanReceiveDataFromClient) {
 	auto msg = "abc\n123\t====__"s;
 	// create listening socket
-	auto srvUP { make_socket<AF_INET, SOCK_STREAM>(9877, srv_addr) };
+	auto srvUP { make_socket<AF_INET, SOCK_STREAM>("9877", srv_addr) };
 
 	// launch client
 	std::stringstream cmd;

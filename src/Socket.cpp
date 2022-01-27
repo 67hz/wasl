@@ -20,23 +20,26 @@ template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_bui
     return this;
 }
 
-template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::bind(int service, path_type host)
+template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::bind(path_type service, path_type host)
 {
-		typename traits::addr_type addr;
-		addr.sin_family = traits::value;
-		in_addr_t res_addr;
+		struct addrinfo hints;
+		struct addrinfo *result;
+		int rc;
 
-		if (strlen(host) &&
-				inet_pton(traits::value, host, &res_addr) != 0) {
-				addr.sin_addr.s_addr = res_addr;
-		} else {
-			addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = Node::traits::value;
+		hints.ai_socktype = Node::socket_type;
+		hints.ai_flags = AI_PASSIVE; // for wildcard IP address
+		hints.ai_protocol = IPPROTO_TCP;
+
+		rc = getaddrinfo(host, service, &hints, &result);
+		if (rc != 0) {
+        sock_err |= SockError::ERR_BIND;
+				return this;
 		}
 
-		addr.sin_port = htons(service);
-
-    if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(&addr),
-               sizeof(typename traits::addr_type)) == -1)
+    if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(result->ai_addr),
+               result->ai_addrlen) == -1)
     {
 
 #ifndef NDEBUG
@@ -45,6 +48,7 @@ template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_bui
         sock_err |= SockError::ERR_BIND;
     }
 
+		freeaddrinfo(result);
     return this;
 }
 

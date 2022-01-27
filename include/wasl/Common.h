@@ -25,8 +25,8 @@ template <typename T, typename V = bool>
 using EnableIfPlatform =
     std::enable_if_t<std::is_same<platform_type, T>::value, V>;
 
-template <typename P1, typename P2>
-using EnableIfSamePlatform = std::enable_if_t<std::is_same<P1, P2>::value>;
+template <typename P1, typename P2, typename V = bool>
+using EnableIfSamePlatform = std::enable_if_t<std::is_same<P1, P2>::value, V>;
 
 } // namespace wasl
 
