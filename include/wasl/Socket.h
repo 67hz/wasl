@@ -171,6 +171,10 @@ public:
         closesocket (sd);
       }
 
+#ifdef SYS_API_WIN32
+    WSACleanup();
+#endif
+
     // TODO check platform here
     // unlink(_addr->sun_path);
   }
@@ -208,12 +212,22 @@ public:
 private:
   friend socket_builder<socket_node<Family, SocketType>>;
 
+#ifdef SYS_API_WIN32
+  WSAData wsaData;
+#endif
+
 
   SOCKET sd{ INVALID_SOCKET }; // a socket descriptor
 
   /// Construction is enforced through socket_builder to ensure valid
   /// initialization of sockets.
-  socket_node () = default;
+  socket_node () {
+#ifdef SYS_API_WIN32
+    std::cout << "winsock init" << '\n';
+    auto iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+    assert(iResult == 0);
+#endif
+  }
 };
 
 
@@ -223,7 +237,6 @@ private:
 /// \tparam IsTCP defaults to void for non-datagrams
 template <typename SocketNode, typename IsTCP> struct socket_builder
 {
-public:
   static constexpr int socket_type = SocketNode::socket_type;
 	using traits = typename SocketNode::traits;
 
@@ -261,9 +274,11 @@ public:
   {
     return std::move(sock);
   }
+
 };
 
-struct sockaddr_un create_dgram_address(path_type host, int2Type<AF_UNIX>) {
+#ifdef SYS_API_LINUX
+struct sockaddr_un create_dgram_address(path_type host, int3Type<AF_UNIX>) {
 	struct sockaddr_un addr;
 	addr.sun_family = AF_UNIX;
 	assert( (strlen(host) < sizeof(addr.sun_path) - 1));
@@ -274,6 +289,7 @@ struct sockaddr_un create_dgram_address(path_type host, int2Type<AF_UNIX>) {
 	strncpy(addr.sun_path, host, sizeof(addr.sun_path) - 1);
 	return addr;
 }
+#endif
 
 struct sockaddr_in create_dgram_address(path_type host, int2Type<AF_INET>) {
 	struct sockaddr_in addr;

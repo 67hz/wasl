@@ -54,7 +54,9 @@
 template <typename T>
 struct is_socket
     : std::integral_constant<bool,
+#ifdef SYS_API_LINUX
                              std::is_same<T, struct sockaddr_un>::value ||
+#endif
                                  std::is_same<T, struct sockaddr_in>::value ||
                                  std::is_same<T, struct sockaddr_in6>::value> {
 };

@@ -62,10 +62,10 @@ template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_bui
 }
 
 #ifdef SYS_API_LINUX
-template struct socket_builder<socket_node<AF_UNIX, SOCK_DGRAM>>;
+template class socket_builder<socket_node<AF_UNIX, SOCK_DGRAM>>;
 #endif
 
-template struct socket_builder<socket_node<AF_INET , SOCK_STREAM>>;
+template class socket_builder<socket_node<AF_INET , SOCK_STREAM>>;
 
 } // namespace ip
 } // namespace wasl

@@ -16,6 +16,10 @@
 #include <sys/unistd.h>
 #endif
 
+#ifdef SYS_API_WIN32
+using epoll_event = std::nullptr_t;
+#endif
+
 namespace wasl {
 namespace ip {
 
