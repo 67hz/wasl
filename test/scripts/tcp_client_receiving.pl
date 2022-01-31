@@ -2,17 +2,15 @@
 
 ###
 #
-# A lightweight socketed test client
+# A TCP client that receives a message
 #
-# usage: ./socket_client.pl {localhost} {port} {message}
+# usage: ./socket_client.pl {localhost} {port}
 #
 ##
 
 use strict;
 use warnings;
 use IO::Socket;
-
-
 
 my $socket = new IO::Socket::INET (
 	PeerAddr => shift || 'localhost',

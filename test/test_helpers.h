@@ -14,6 +14,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#define SRV_PATH "/tmp/wasl/srv"
+#define CL_PATH "/tmp/wasl/cl"
+#define HOST "192.168.1.10"
+#define SERVICE "9877"
+
 static int wait_for_child_fork(int pid) {
   int status;
   if (waitpid(pid, &status, 0) < 0)
