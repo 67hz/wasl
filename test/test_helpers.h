@@ -8,6 +8,7 @@
 #include <wasl/Common.h>
 
 #if defined(SYS_API_WIN32)
+#include <Windows.h>
 
 #elif defined(SYS_API_LINUX)
 #include <sys/wait.h>
@@ -95,10 +96,25 @@ constexpr int run_process(const char* command) {
 	return 0;
 }
 
-// use CreateProcess in lieue of fork()
+// Windows uses CreateProcess in lieue of fork()
 template <typename P,
 				 EnableIfSamePlatform<P, windows> = true>
 constexpr int run_process(const char* command) {
+  STARTUPINFO si { sizeof(si) };
+  PROCESS_INFORMATION pi;
+  auto cmd = const_cast<char*>(command);
+
+  bool success = ::CreateProcess(nullptr, TEXT(cmd), nullptr, nullptr, FALSE, 0,
+      nullptr, nullptr, &si, &pi);
+  if (success) {
+    // close thread handle
+    ::CloseHandle(pi.hThread);
+    ::WaitForSingleObject(pi.hProcess, INFINITE);
+
+    // Close process handle
+    ::CloseHandle(pi.hProcess);
+  }
+
 	return 0;
 }
 

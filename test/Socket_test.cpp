@@ -31,7 +31,6 @@ TEST(socket_utils, GetAddressFromSocketDescriptor) {
 	auto res = inet_pton(AF_INET, srv_addr, &ip);
 	auto SA = address(*sock);
 	ASSERT_EQ(ip.s_addr, SA->sin_addr.s_addr);
-#if 0
 	ASSERT_EQ(ip.s_addr, SA->sin_addr.s_addr);
 	auto res_sockaddr = reinterpret_cast<struct sockaddr_in*>(&addr);
 	ASSERT_EQ(res_sockaddr->sin_port, SA->sin_port);
@@ -42,14 +41,12 @@ TEST(socket_utils, GetAddressFromSocketDescriptor) {
 	auto res_nwaddr = inet_ntop(AF_INET, &(res_sockaddr->sin_addr), res_nwbuf, INET_ADDRSTRLEN);
 	auto nw_addr = inet_ntop(AF_INET, &(SA->sin_addr), nwbuf, INET_ADDRSTRLEN);
 	ASSERT_STREQ(res_nwbuf, nwbuf);
-#endif
 }
 
-#if 0
 
 TEST(socket_utils, GetSocketFamilyFromSocketDescriptor) {
 	auto sock_uptr { socket_tcp::
-		create()->socket()->build() };
+		create()->socket()->bind(SERVICE)->build() };
 	auto family = sockfd_to_family(sockno(*sock_uptr));
 	ASSERT_EQ(family, AF_INET);
 }
@@ -131,7 +128,7 @@ TEST(socket_builder, CanBuildTCPSocketWithPortAndIPAddress) {
 
 
 TEST(tcp_sockets, CanReceiveDataFromClient) {
-	auto msg = "abc\n123\t====__"s;
+	auto msg = "abc\n123."s;
 	// create listening socket
 	auto srvUP { make_socket<AF_INET, SOCK_STREAM>(SERVICE, srv_addr) };
 
@@ -148,8 +145,6 @@ TEST(tcp_sockets, CanReceiveDataFromClient) {
 	recvfrom(client_fd ,buf, 256, 0, NULL, NULL);
 	ASSERT_TRUE(strstr(buf, msg.c_str()));
 }
-
-#endif
 
 
 

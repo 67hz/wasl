@@ -87,7 +87,6 @@ int sockfd_to_family(SOCKET sfd) {
 /// \return generic sockaddr_storage struct.
 auto get_address (SOCKET sfd)
 {
-//	auto family = sockfd_to_family(sfd);
 	struct sockaddr_storage res;
   memset (&res, 0, sizeof (res));
   socklen_t socklen = sizeof(res);
@@ -334,7 +333,7 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
     {
 
 #ifndef NDEBUG
-        std::cerr << "Bind error: " << strerror(GET_SOCKERRNO()) << '\n';
+//        std::cerr << "Bind error: " << strerror(GET_SOCKERRNO()) << '\n';
 #endif
         sock_err |= SockError::ERR_BIND;
     }
@@ -373,10 +372,12 @@ make_socket (path_type sock_path)
                    ->bind (sock_path)
                    ->build () };
 
+#ifndef NDEBUG
   if (!socket)
     {
-      std::cerr << strerror (GET_SOCKERRNO ()) << '\n';
+     // std::cerr << strerror (GET_SOCKERRNO ()) << '\n';
     }
+#endif
 
   return std::unique_ptr<socket_node<Family, SocketType> > (
       std::move (socket));
@@ -395,10 +396,12 @@ make_socket (path_type service, path_type sock_path)
                    ->listen ()
                    ->build () };
 
+#ifndef NDEBUG
   if (!socket)
     {
-      std::cerr << strerror (GET_SOCKERRNO ()) << '\n';
+     // std::cerr << strerror (GET_SOCKERRNO ()) << '\n';
     }
+#endif
 
   return std::unique_ptr<socket_node<Family, SocketType> > (
       std::move (socket));
