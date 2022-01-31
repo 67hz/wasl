@@ -267,7 +267,6 @@ template <typename SocketNode, typename IsTCP> struct socket_builder
     return !local::toUType (sock_err) && is_open (*sock);
   }
 
-	/// \return new'd ptr. Caller has responsibility to wrap in owning ptr.
 	std::unique_ptr<SocketNode>
   build ()
   {
@@ -277,7 +276,7 @@ template <typename SocketNode, typename IsTCP> struct socket_builder
 };
 
 #ifdef SYS_API_LINUX
-struct sockaddr_un create_dgram_address(path_type host, int3Type<AF_UNIX>) {
+struct sockaddr_un create_dgram_address(path_type host, int2Type<AF_UNIX>) {
 	struct sockaddr_un addr;
 	addr.sun_family = AF_UNIX;
 	assert( (strlen(host) < sizeof(addr.sun_path) - 1));
@@ -331,10 +330,6 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
     if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(&addr),
                sizeof(typename traits::addr_type)) == -1)
     {
-
-#ifndef NDEBUG
-//        std::cerr << "Bind error: " << strerror(GET_SOCKERRNO()) << '\n';
-#endif
         sock_err |= SockError::ERR_BIND;
     }
 

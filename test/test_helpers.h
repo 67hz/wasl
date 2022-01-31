@@ -65,7 +65,6 @@ auto fork_and_wait(F f, Types&&... args) {
   fw_impl();
 }
 
-
 class thread_guard {
   std::thread &t;
 
@@ -82,6 +81,9 @@ public:
 };
 
 #endif // fork-based posix helpers
+
+
+
 namespace wasl {
 
 template <typename P,
@@ -96,6 +98,7 @@ constexpr int run_process(const char* command) {
 	return 0;
 }
 
+#ifdef SYS_API_WIN32
 // Windows uses CreateProcess in lieue of fork()
 template <typename P,
 				 EnableIfSamePlatform<P, windows> = true>
@@ -117,6 +120,7 @@ constexpr int run_process(const char* command) {
 
 	return 0;
 }
+#endif
 
 
 

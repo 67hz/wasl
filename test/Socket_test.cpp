@@ -12,7 +12,7 @@ using namespace testing;
 using namespace std::string_literals;
 using namespace wasl::ip;
 using wasl::local::toUType;
-#define HOST "192.168.1.106"
+#define HOST "192.168.1.10"
 #define SERVICE "9877"
 
 
