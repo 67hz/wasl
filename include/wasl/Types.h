@@ -106,7 +106,8 @@ enum class SockError : uint32_t {
   ERR_BIND = 0x2,
   ERR_CONNECT = 0x4,
   ERR_LISTEN = 0x8,
-  ERR_PATH_INVAL = 0x10
+  ERR_PATH_INVAL = 0x10,
+	ERR_SOCKET_OPT = 0x20
 };
 WASL_MARK_AS_BITMASK_ENUM(SockError);
 } // namespace ip

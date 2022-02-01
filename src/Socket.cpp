@@ -17,6 +17,10 @@ template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_bui
     if (!is_valid_socket(sock->sd))
         sock_err |= SockError::ERR_SOCKET;
 
+		int optval {1};
+		if (setsockopt(sock->sd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+			sock_err |= SockError::ERR_SOCKET_OPT;
+
     return this;
 }
 

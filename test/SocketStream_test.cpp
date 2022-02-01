@@ -41,23 +41,22 @@ TEST(sockstream_tcp_stream, CanRecvClientData) {
 	auto srv { make_socket<AF_INET, SOCK_STREAM>(SERVICE,HOST) };
 
 	auto msg_from_client {"abc1234"};
+
 	std::stringstream cmd;
 	cmd << "perl ./test/scripts/socket_client.pl " << HOST << " " << SERVICE << " '" << msg_from_client << "'";
 	wasl::run_process<wasl::platform_type>(cmd.str().c_str());
 
 	auto client_fd = socket_accept(srv.get());
 	ASSERT_NE(client_fd, -1);
-	sockstream ss_cl {client_fd};
+//	sockstream ss_cl {client_fd}; // same as below
+	auto ss_cl = sdopen(client_fd);
 
 	std::string res;
-
-	ss_cl >> res;
+	*ss_cl >> res;
 	ASSERT_STREQ(res.c_str(), msg_from_client);
-
-	// write to client
-//	ss_cl << "can you see me?" << std::endl;
 }
 
+#if 0
 TEST(sockstream_tcp_stream, CanSendClientData) {
 	auto srv { make_socket<AF_INET, SOCK_STREAM>(SERVICE,HOST) };
 	sockstream ss_srv {sockno(*srv)};
@@ -80,3 +79,4 @@ TEST(sockstream_tcp_stream, CanSendClientData) {
 	// write to client
 //	ss_cl << "can you see me?" << std::endl;
 }
+#endif

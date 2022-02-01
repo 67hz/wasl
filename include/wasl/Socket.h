@@ -209,20 +209,21 @@ public:
   }
 
 private:
+  SOCKET sd{ INVALID_SOCKET }; // a socket descriptor
+
   friend socket_builder<socket_node<Family, SocketType>>;
+
 
 #ifdef SYS_API_WIN32
   WSAData wsaData;
 #endif
 
 
-  SOCKET sd{ INVALID_SOCKET }; // a socket descriptor
 
   /// Construction is enforced through socket_builder to ensure valid
   /// initialization of sockets.
   socket_node () {
 #ifdef SYS_API_WIN32
-    std::cout << "winsock init" << '\n';
     auto iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     assert(iResult == 0);
 #endif
@@ -320,6 +321,7 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
 
     if (!is_valid_socket(sock->sd))
         sock_err |= SockError::ERR_SOCKET;
+
 
     return this;
 	}

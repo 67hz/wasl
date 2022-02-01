@@ -173,18 +173,26 @@ public:
     return *this;
   }
 
-  friend SOCKET sockno(const sockstream &);
+	/// Get a sockstream's underlying socket descriptor
+	/// \see fileno()
+  inline friend SOCKET sockno(const sockstream &sock) {
+		if (sock)
+			return sock._sd();
+		else
+			return INVALID_SOCKET;
+	}
 
   buf_type *rdbuf() const { return m_sockbuf.get(); }
 
-  void set_handle(SOCKET sockfd) {
+  int set_handle(SOCKET sockfd) {
     assert(sockfd != INVALID_SOCKET);
     if (sockfd == INVALID_SOCKET) {
-      return;
+      return -1;
     }
 
     m_sockbuf.load(sockfd);
     this->init(rdbuf());
+		return 0;
   }
 
 private:
@@ -195,18 +203,10 @@ private:
   vproxy_ptr<buf_type> m_sockbuf;
 };
 
-/// Get a sockstream's underlying socket descriptor
-/// \see fileno()
-SOCKET sockno(const sockstream &sock) {
-  if (sock)
-    return sock._sd();
-  else
-    return INVALID_SOCKET;
-}
 
 /// Open sockstream given a SOCKET descriptor.
 /// \see fdopen()
-std::unique_ptr<sockstream> sdopen(SOCKET sd) {
+static std::unique_ptr<sockstream> sdopen(SOCKET sd) {
   return std::make_unique<sockstream>(sd);
 }
 
