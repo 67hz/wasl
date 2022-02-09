@@ -1,2 +1,4 @@
 tags
 cscope.out
+compile_commands.json
+.clangd

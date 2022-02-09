@@ -20,8 +20,8 @@ constexpr gsl::czstring<> srv_addr{HOST};
 constexpr gsl::czstring<> srv_path{"/tmp/wasl/srv"};
 constexpr gsl::czstring<> client_path{"/tmp/wasl/client"};
 
-using socket_tcp = socket_node<AF_INET, SOCK_STREAM>;
-using socket_dgram = socket_node<AF_INET, SOCK_DGRAM>;
+using socket_tcp = wasl_socket<AF_INET, SOCK_STREAM>;
+using socket_dgram = wasl_socket<AF_INET, SOCK_DGRAM>;
 
 TEST(socket_utils, GetAddressFromSocketDescriptor) {
 	std::unique_ptr<socket_tcp> sock { socket_tcp::
@@ -52,7 +52,7 @@ TEST(socket_utils, GetSocketFamilyFromSocketDescriptor) {
 }
 
 #ifdef SYS_API_LINUX
-using socket_local = socket_node<AF_UNIX, SOCK_DGRAM>;
+using socket_local = wasl_socket<AF_UNIX, SOCK_DGRAM>;
 
 TEST(socket_builder_unix_domain, CanBuildUnixDomainDatagram) {
 	std::unique_ptr<socket_local> sock { socket_local::

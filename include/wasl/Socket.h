@@ -37,8 +37,9 @@ namespace ip
 {
 using path_type = gsl::czstring<>;
 
-template <typename SocketNode, typename isTCP = void> struct socket_builder;
-template <int Family, int SocketType> class socket_node;
+template <typename SocketNode> struct socket_builder;
+template <typename Derived> struct socket_builder_base;
+template <int Family, int SocketType> class wasl_socket;
 
 template <int SocketFamily>
 struct socket_traits {
@@ -103,32 +104,23 @@ struct sockaddr_storage get_address (SOCKET sfd)
 #ifdef SYS_API_LINUX
 struct sockaddr_un create_dgram_address(path_type host, int2Type<AF_UNIX>) {
 	struct sockaddr_un addr;
-	addr.sun_family = AF_UNIX;
-	assert( (strlen(host) < sizeof(addr.sun_path) - 1));
-
-	// remove path in case artifacts were left from a previous run
-	unlink(host);
-
-	strncpy(addr.sun_path, host, sizeof(addr.sun_path) - 1);
 	return addr;
 }
 #endif
 
-struct sockaddr_in create_dgram_address(path_type host, int2Type<AF_INET>) {
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	std::cout << "UDP datagrams INET work" << '\n';
-	return addr;
-}
 
-struct sockaddr_in* create_address(path_type service, path_type host, int2Type<AF_INET>) {
+/// create AF_INET, AF_INET6 as  DGRAMS or SOCK_STREAM
+template <int Family, int SocketType, typename traits = socket_traits<Family>>
+auto create_inet_address(path_type service, path_type host) {
 		struct addrinfo hints;
 		struct addrinfo *result;
 		int rc;
 
 		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = AF_INET;
-		hints.ai_socktype = SOCK_STREAM;
+		//hints.ai_family = AF_INET;
+		hints.ai_family = Family;
+		//hints.ai_socktype = SOCK_STREAM;
+		hints.ai_socktype = SocketType;
 		hints.ai_flags = AI_PASSIVE; // for wildcard IP address
 		//hints.ai_protocol = IPPROTO_TCP;
 		hints.ai_protocol = 0; // TODO allow override
@@ -147,17 +139,42 @@ struct sockaddr_in* create_address(path_type service, path_type host, int2Type<A
 				return this;
 		}
 #endif
-		auto addr = reinterpret_cast<struct sockaddr_in *>(result->ai_addr);
+		auto addr = reinterpret_cast<typename traits::addr_type *>(result->ai_addr);
 //		freeaddrinfo(result);
 		return addr;
 }
 
-/// Connect a socket_node to a peer's socket descriptor
+template <int Family, int SocketType, typename traits = socket_traits<Family>>
+typename traits::addr_type* create_address(path_type service, path_type host, int2Type<AF_INET>) {
+	return create_inet_address<Family, SocketType>(service, host);
+}
+
+template <int Family, int SocketType, typename traits = socket_traits<Family>>
+typename traits::addr_type* create_address(path_type service, path_type host, int2Type<AF_INET6>) {
+	return create_inet_address<Family, SocketType>(service, host);
+}
+
+template <int Family, int SocketType, typename traits = socket_traits<Family>>
+typename traits::addr_type* create_address(path_type service, path_type host, int2Type<AF_UNIX>) {
+	struct sockaddr_un* addr = new sockaddr_un;
+	addr->sun_family = AF_UNIX;
+	assert( (strlen(host) < sizeof(addr->sun_path) - 1));
+
+	// remove path in case artifacts were left from a previous run
+	unlink(host);
+
+	strncpy(addr->sun_path, host, sizeof(addr->sun_path) - 1);
+	return addr;
+}
+
+
+
+/// Connect a wasl_socket to a peer's socket descriptor
 /// \param node SocketNode
 /// \param link socket fd containing address to connect with
-template <int Family, int Socket_Type, EnableIfSocketType<typename socket_node<Family, Socket_Type>::traits::addr_type> = true >
+template <int Family, int Socket_Type, EnableIfSocketType<typename wasl_socket<Family, Socket_Type>::traits::addr_type> = true >
 SOCKET
-socket_connect (const socket_node<Family, Socket_Type> &node, SOCKET link)
+socket_connect (const wasl_socket<Family, Socket_Type> &node, SOCKET link)
 {
   if (!node)
     {
@@ -169,9 +186,9 @@ socket_connect (const socket_node<Family, Socket_Type> &node, SOCKET link)
 
 }
 
-template <int Family, int Socket_Type, EnableIfSocketType<typename socket_node<Family, Socket_Type>::traits::addr_type> = true >
+template <int Family, int Socket_Type, EnableIfSocketType<typename wasl_socket<Family, Socket_Type>::traits::addr_type> = true >
 SOCKET
-socket_listen (const socket_node<Family, Socket_Type> &node)
+socket_listen (const wasl_socket<Family, Socket_Type> &node)
 {
   if (!is_valid_socket (sockno (node)))
     return INVALID_SOCKET;
@@ -179,12 +196,12 @@ socket_listen (const socket_node<Family, Socket_Type> &node)
   return ::listen (sockno (node), WASL_LISTEN_BACKLOG);
 }
 
-/// Accept a socket_node via a listening socket
+/// Accept a wasl_socket via a listening socket
 /// \return fd of accepted socket
-template <int Family, int Socket_Type, typename traits = typename socket_node<Family, Socket_Type>::traits, EnableIfSocketType<typename traits::addr_type> = true ,
+template <int Family, int Socket_Type, typename traits = typename wasl_socket<Family, Socket_Type>::traits, EnableIfSocketType<typename traits::addr_type> = true ,
           socklen_t len = (sizeof (typename traits::addr_type))>
 SOCKET
-socket_accept (socket_node<Family, Socket_Type> *listening_node)
+socket_accept (wasl_socket<Family, Socket_Type> *listening_node)
 {
   if (!listening_node)
     {
@@ -205,7 +222,7 @@ socket_accept (socket_node<Family, Socket_Type> *listening_node)
 /// \tparam SocketType  Type of socket, e.g., SOCK_DGRAM
 /// \TODO check is_integral_type or use value param
 template <int Family, int SocketType>
-class socket_node
+class wasl_socket
 {
 public:
 	using traits = socket_traits<Family>;
@@ -215,7 +232,7 @@ public:
   // errno with GET_SOCKERRNO() to handle
   SockError sock_err = SockError::ERR_NONE;
 
-  ~socket_node ()
+  ~wasl_socket ()
   {
     if (is_valid_socket (sd))
       {
@@ -244,20 +261,20 @@ public:
 
 	/// \TODO use isfdtype(int fd, int fdtype) to check actual socket existence
   inline friend constexpr bool
-  is_open (const socket_node &node) noexcept
+  is_open (const wasl_socket &node) noexcept
   {
     return is_valid_socket (node.sd);
   }
 
   inline friend constexpr SOCKET
-  sockno (const socket_node &node) noexcept
+  sockno (const wasl_socket &node) noexcept
   {
     return node.sd;
   }
 
   /// Get a pointer to the associated socket address struct
   inline friend constexpr std::unique_ptr<typename traits::addr_type>
-  address (const socket_node &node) noexcept
+  address (const wasl_socket &node) noexcept
   {
 		auto addr = new sockaddr_storage;
 		*addr = get_address(node.sd);
@@ -269,13 +286,16 @@ public:
   static auto
   create ()
   {
-    return std::make_unique<socket_builder<socket_node<Family, SocketType>>>();
+    return std::make_unique<socket_builder<wasl_socket<Family, SocketType>>>();
   }
 
 private:
   SOCKET sd{ INVALID_SOCKET }; // a socket descriptor
 
-  friend socket_builder<socket_node<Family, SocketType>>;
+  friend socket_builder<wasl_socket<Family, SocketType>>;
+
+	template <typename B>
+  friend struct socket_builder_base;
 
 
 #ifdef SYS_API_WIN32
@@ -286,7 +306,7 @@ private:
 
   /// Construction is enforced through socket_builder to ensure valid
   /// initialization of sockets.
-  socket_node () {
+  wasl_socket () {
 #ifdef SYS_API_WIN32
     auto iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     assert(iResult == 0);
@@ -296,21 +316,93 @@ private:
 
 
 
+template <typename Derived>
+struct socket_builder_base {
+
+	// make alias type dependent on Derived to avoid compiler throwing incomplete
+	// struct error
+	// see accessing child types in c++ using crtp
+	template<typename D = Derived>
+	using traits = typename D::traits;
+
+	template<typename D = Derived>
+	using node = typename D::node;
+
+
+	socket_builder_base() = default;
+
+#if 0
+	Derived& asDerived() { return *static_cast<Derived*>(this); }
+	Derived const& asDerived() const { return *static_cast<Derived const*>(this); }
+#endif
+
+	Derived* asDerived() { return static_cast<Derived *>(this); }
+
+
+	Derived* socket() {
+    asDerived()->sock->sd = ::socket(Derived::family, Derived::socket_type, 0);
+
+    if (!is_valid_socket(asDerived()->sock->sd))
+        asDerived()->sock->sock_err |= SockError::ERR_SOCKET;
+
+		int optval {1};
+		if (setsockopt(asDerived()->sock->sd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+			asDerived()->sock->sock_err |= SockError::ERR_SOCKET_OPT;
+
+    return asDerived();
+	}
+
+
+};
 
 /// Primary socket builder builds TCP sockets
 /// \tparam IsTCP defaults to void for non-datagrams
-template <typename SocketNode, typename IsTCP> struct socket_builder
+template <typename SocketNode> struct socket_builder : public socket_builder_base<socket_builder<SocketNode>>
 {
-  static constexpr int socket_type = SocketNode::socket_type;
 	using traits = typename SocketNode::traits;
+  static constexpr int socket_type = SocketNode::socket_type;
+	static constexpr int family = traits::value;
+	using node = SocketNode;
 
 	std::unique_ptr<SocketNode> sock;
 
-  socket_builder ();
+  socket_builder ()
+	: sock { new SocketNode} { }
 
-  socket_builder *socket ();
+#if 0
+  socket_builder *socket () {
+    sock->sd = ::socket(traits::value, socket_type, 0);
 
-  socket_builder *bind (path_type service, path_type host = "");
+    if (!is_valid_socket(sock->sd))
+        sock->sock_err |= SockError::ERR_SOCKET;
+
+		int optval {1};
+		if (setsockopt(sock->sd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+			sock->sock_err |= SockError::ERR_SOCKET_OPT;
+
+    return this;
+
+	}
+#endif
+	// enable_if bind with path only for Unix domain sockets
+
+  socket_builder *bind (path_type service, path_type host = "") {
+
+		/// TODO tag dispatch for datagrams, Unix domain, ...
+		auto addr = create_address<family, socket_type>(service, host, int2Type<traits::value>());
+			if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(addr),
+								 sizeof(typename traits::addr_type)) == -1)
+			{
+
+#ifndef NDEBUG
+	//        std::cerr << "Bind error: " << strerror(GET_SOCKERRNO()) << '\n';
+#endif
+					sock->sock_err |= SockError::ERR_BIND;
+			}
+
+			return this;
+	}
+
 
   socket_builder *listen ();
 
@@ -328,29 +420,10 @@ template <typename SocketNode, typename IsTCP> struct socket_builder
 
 
 
+#if 0
 // for datagrams
 template <typename SocketNode>
-struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Type<SOCK_DGRAM>, int2Type<SocketNode::socket_type>>::value>> {
-	using traits = typename SocketNode::traits;
-
-	std::unique_ptr<SocketNode> sock;
-
-  socket_builder ()
-		: sock { new SocketNode }
-	{
-	// tag dispatch based on socket family
-		//create_dgram_address(sock, host, int2Type<traits::value>());
-	}
-
-  socket_builder *socket () {
-    sock->sd = ::socket(traits::value, SocketNode::socket_type, 0);
-
-    if (!is_valid_socket(sock->sd))
-        sock->sock_err |= SockError::ERR_SOCKET;
-
-
-    return this;
-	}
+struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Type<SOCK_DGRAM>, int2Type<SocketNode::socket_type>>::value>> : public socket_builder_base<socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Type<SOCK_DGRAM>, int2Type<SocketNode::socket_type>>::value>> {
 
 	socket_builder *bind (path_type host) {
 	// tag dispatch based on socket family
@@ -371,10 +444,11 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
     return std::move(sock);
   }
 };
+#endif
 
 
 
-/// makers for creating a unique_ptr to a socket_node
+/// makers for creating a unique_ptr to a wasl_socket
 /// TODO add overloads for:
 /// passive_opens (e.g., TCP servers) adding listen() to builder chain
 /// active opens (e.g., client sockets) adding connect() to builder chain
@@ -390,7 +464,7 @@ template <int Family, int SocketType,
 auto
 make_socket (path_type sock_path)
 {
-  auto socket{ socket_node<Family, SocketType>::create ()
+  auto socket{ wasl_socket<Family, SocketType>::create ()
                    ->socket ()
                    ->bind (sock_path)
                    ->build () };
@@ -402,7 +476,7 @@ make_socket (path_type sock_path)
     }
 #endif
 
-  return std::unique_ptr<socket_node<Family, SocketType> > (
+  return std::unique_ptr<wasl_socket<Family, SocketType> > (
       std::move (socket));
 }
 
@@ -413,11 +487,13 @@ template <int Family, int SocketType,
 auto
 make_socket (path_type service, path_type sock_path)
 {
-  auto socket{ socket_node<Family, SocketType>::create ()
+  auto socket{ wasl_socket<Family, SocketType>::create ()
                    ->socket ()
                    ->bind (service, sock_path)
-                   ->listen ()
+                  // ->listen ()
                    ->build () };
+
+	socket_listen(*socket);
 
 #ifndef NDEBUG
   if (!socket)
@@ -426,7 +502,7 @@ make_socket (path_type service, path_type sock_path)
     }
 #endif
 
-  return std::unique_ptr<socket_node<Family, SocketType> > (
+  return std::unique_ptr<wasl_socket<Family, SocketType> > (
       std::move (socket));
 }
 
