@@ -15,44 +15,29 @@ template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_bui
     sock->sd = ::socket(traits::value, socket_type, 0);
 
     if (!is_valid_socket(sock->sd))
-        sock_err |= SockError::ERR_SOCKET;
+        sock->sock_err |= SockError::ERR_SOCKET;
 
 		int optval {1};
 		if (setsockopt(sock->sd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
-			sock_err |= SockError::ERR_SOCKET_OPT;
+			sock->sock_err |= SockError::ERR_SOCKET_OPT;
 
     return this;
 }
 
 template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_builder<Node, IsTCP>::bind(path_type service, path_type host)
 {
-		struct addrinfo hints;
-		struct addrinfo *result;
-		int rc;
+	typename traits::addr_type* addr = create_address(service, host, int2Type<traits::value>());
 
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = Node::traits::value;
-		hints.ai_socktype = Node::socket_type;
-		hints.ai_flags = AI_PASSIVE; // for wildcard IP address
-		hints.ai_protocol = IPPROTO_TCP;
-
-		rc = getaddrinfo(host, service, &hints, &result);
-		if (rc != 0) {
-        sock_err |= SockError::ERR_BIND;
-				return this;
-		}
-
-    if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(result->ai_addr),
-               result->ai_addrlen) == -1)
+    if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(addr),
+               sizeof(typename traits::addr_type)) == -1)
     {
 
 #ifndef NDEBUG
 //        std::cerr << "Bind error: " << strerror(GET_SOCKERRNO()) << '\n';
 #endif
-        sock_err |= SockError::ERR_BIND;
+        sock->sock_err |= SockError::ERR_BIND;
     }
 
-		freeaddrinfo(result);
     return this;
 }
 
@@ -60,7 +45,7 @@ template <typename Node, typename IsTCP> socket_builder<Node, IsTCP> *socket_bui
 {
     if (socket_listen(*sock) == INVALID_SOCKET)
     {
-        sock_err |= SockError::ERR_LISTEN;
+        sock->sock_err |= SockError::ERR_LISTEN;
     }
     return this;
 }

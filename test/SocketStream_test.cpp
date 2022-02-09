@@ -37,13 +37,13 @@ TEST(sockstream, IsMoveAssignable) {
 	ASSERT_EQ(sockno(ss2), ss1_fd);
 }
 
-TEST(sockstream_tcp_stream, CanRecvClientData) {
+TEST(sockstream_tcp_stream, CanReadData) {
 	auto srv { make_socket<AF_INET, SOCK_STREAM>(SERVICE,HOST) };
 
 	auto msg_from_client {"abc1234"};
 
 	std::stringstream cmd;
-	cmd << "perl ./test/scripts/socket_client.pl " << HOST << " " << SERVICE << " '" << msg_from_client << "'";
+	cmd << "perl ./test/scripts/tcp_client.pl " << HOST << " " << SERVICE << " '" << msg_from_client << "'";
 	wasl::run_process<wasl::platform_type>(cmd.str().c_str());
 
 	auto client_fd = socket_accept(srv.get());

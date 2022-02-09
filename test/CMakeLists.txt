@@ -59,14 +59,14 @@ macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES TEST_WORKING_DIRE
   set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
 endmacro()
 
-
 set(TEST_SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
 file(TO_NATIVE_PATH ${TEST_SCRIPTS_DIR} testScripts)
 cmake_print_variables(CMAKE_CURRENT_SOURCE_DIR)
 cmake_print_variables(CMAKE_CURRENT_BINARY_DIR)
 cmake_print_variables(testScripts)
-
 file(COPY ${TEST_SCRIPTS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+
 
 # lib tests
 package_add_test_with_libraries(vproxy_test VirtualProxy_test.cpp Wasl::Wasl "${PROJECT_DIR}")

@@ -134,7 +134,7 @@ TEST(tcp_sockets, CanReceiveDataFromClient) {
 
 	// launch client
 	std::stringstream cmd;
-	cmd << "perl ./test/scripts/socket_client.pl " << HOST << " " << SERVICE << " '" << msg << "'";
+	cmd << "perl ./test/scripts/tcp_client.pl " << HOST << " " << SERVICE << " '" << msg << "'";
 	wasl::run_process<wasl::platform_type>(cmd.str().c_str());
 
 	// accept client

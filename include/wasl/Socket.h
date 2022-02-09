@@ -37,6 +37,9 @@ namespace ip
 {
 using path_type = gsl::czstring<>;
 
+template <typename SocketNode, typename isTCP = void> struct socket_builder;
+template <int Family, int SocketType> class socket_node;
+
 template <int SocketFamily>
 struct socket_traits {
 	static constexpr int value = SocketFamily;
@@ -85,7 +88,7 @@ int sockfd_to_family(SOCKET sfd) {
 /// Caller should cast returned struct to protocol-specific struct,
 /// e.g., struct sockaddr_in.
 /// \return generic sockaddr_storage struct.
-auto get_address (SOCKET sfd)
+struct sockaddr_storage get_address (SOCKET sfd)
 {
 	struct sockaddr_storage res;
   memset (&res, 0, sizeof (res));
@@ -96,13 +99,65 @@ auto get_address (SOCKET sfd)
   return res;
 }
 
+
+#ifdef SYS_API_LINUX
+struct sockaddr_un create_dgram_address(path_type host, int2Type<AF_UNIX>) {
+	struct sockaddr_un addr;
+	addr.sun_family = AF_UNIX;
+	assert( (strlen(host) < sizeof(addr.sun_path) - 1));
+
+	// remove path in case artifacts were left from a previous run
+	unlink(host);
+
+	strncpy(addr.sun_path, host, sizeof(addr.sun_path) - 1);
+	return addr;
+}
+#endif
+
+struct sockaddr_in create_dgram_address(path_type host, int2Type<AF_INET>) {
+	struct sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	std::cout << "UDP datagrams INET work" << '\n';
+	return addr;
+}
+
+struct sockaddr_in* create_address(path_type service, path_type host, int2Type<AF_INET>) {
+		struct addrinfo hints;
+		struct addrinfo *result;
+		int rc;
+
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_flags = AI_PASSIVE; // for wildcard IP address
+		//hints.ai_protocol = IPPROTO_TCP;
+		hints.ai_protocol = 0; // TODO allow override
+
+
+		rc = getaddrinfo(host, service, &hints, &result);
+		if (rc != 0) {
+			/// \TODO handle error
+		}
+
+
+
+#if 0
+		if (rc != 0) {
+        sock->sock_err |= SockError::ERR_BIND;
+				return this;
+		}
+#endif
+		auto addr = reinterpret_cast<struct sockaddr_in *>(result->ai_addr);
+//		freeaddrinfo(result);
+		return addr;
+}
+
 /// Connect a socket_node to a peer's socket descriptor
 /// \param node SocketNode
 /// \param link socket fd containing address to connect with
-template <typename T, EnableIfSocketType<typename T::traits::addr_type> = true,
-          socklen_t len = (sizeof (typename T::traits::addr_type))>
+template <int Family, int Socket_Type, EnableIfSocketType<typename socket_node<Family, Socket_Type>::traits::addr_type> = true >
 SOCKET
-socket_connect (const T &node, SOCKET link)
+socket_connect (const socket_node<Family, Socket_Type> &node, SOCKET link)
 {
   if (!node)
     {
@@ -114,9 +169,9 @@ socket_connect (const T &node, SOCKET link)
 
 }
 
-template <typename T, EnableIfSocketType<typename T::traits::addr_type> = true>
+template <int Family, int Socket_Type, EnableIfSocketType<typename socket_node<Family, Socket_Type>::traits::addr_type> = true >
 SOCKET
-socket_listen (const T &node)
+socket_listen (const socket_node<Family, Socket_Type> &node)
 {
   if (!is_valid_socket (sockno (node)))
     return INVALID_SOCKET;
@@ -126,10 +181,10 @@ socket_listen (const T &node)
 
 /// Accept a socket_node via a listening socket
 /// \return fd of accepted socket
-template <typename T, EnableIfSocketType<typename T::traits::addr_type> = true,
-          socklen_t len = (sizeof (typename T::traits::addr_type))>
+template <int Family, int Socket_Type, typename traits = typename socket_node<Family, Socket_Type>::traits, EnableIfSocketType<typename traits::addr_type> = true ,
+          socklen_t len = (sizeof (typename traits::addr_type))>
 SOCKET
-socket_accept (T *listening_node)
+socket_accept (socket_node<Family, Socket_Type> *listening_node)
 {
   if (!listening_node)
     {
@@ -137,17 +192,13 @@ socket_accept (T *listening_node)
     }
 
   auto socklen = len;
-  typename T::traits::addr_type peer_addr;
+  typename traits::addr_type peer_addr;
   return accept (sockno (*listening_node), (SOCKADDR *)(&peer_addr), &socklen);
 }
 
 } // namespace anon
 
 
-
-
-
-template <typename SocketNode, typename isTCP = void> struct socket_builder;
 
 /// RAII Wrapper for a socket that close()'s socket connection on destruction.
 /// \tparam Family socket family (address protocol suite)
@@ -159,6 +210,10 @@ class socket_node
 public:
 	using traits = socket_traits<Family>;
 	constexpr static int socket_type = SocketType;
+
+  // indicates where errors occur in build pipeline, clients should check
+  // errno with GET_SOCKERRNO() to handle
+  SockError sock_err = SockError::ERR_NONE;
 
   ~socket_node ()
   {
@@ -176,6 +231,15 @@ public:
 
     // TODO check platform here
     // unlink(_addr->sun_path);
+  }
+
+  auto
+  get_error () const
+  {
+#ifndef NDEBUG
+    std::cerr << "wasl error: " << local::toUType (sock_err) << '\n';
+#endif
+    return GET_SOCKERRNO ();
   }
 
 	/// \TODO use isfdtype(int fd, int fdtype) to check actual socket existence
@@ -242,20 +306,7 @@ template <typename SocketNode, typename IsTCP> struct socket_builder
 
 	std::unique_ptr<SocketNode> sock;
 
-  // indicates where errors occur in build pipeline, clients should check
-  // errno with GET_SOCKERRNO() to handle
-  SockError sock_err = SockError::ERR_NONE;
-
   socket_builder ();
-
-  auto
-  get_error ()
-  {
-#ifndef NDEBUG
-    std::cerr << "wasl error: " << local::toUType (sock_err) << '\n';
-#endif
-    return GET_SOCKERRNO ();
-  }
 
   socket_builder *socket ();
 
@@ -265,7 +316,7 @@ template <typename SocketNode, typename IsTCP> struct socket_builder
 
   explicit operator bool () const
   {
-    return !local::toUType (sock_err) && is_open (*sock);
+    return !local::toUType (sock->sock_err) && is_open (*sock);
   }
 
 	std::unique_ptr<SocketNode>
@@ -273,29 +324,8 @@ template <typename SocketNode, typename IsTCP> struct socket_builder
   {
     return std::move(sock);
   }
-
 };
 
-#ifdef SYS_API_LINUX
-struct sockaddr_un create_dgram_address(path_type host, int2Type<AF_UNIX>) {
-	struct sockaddr_un addr;
-	addr.sun_family = AF_UNIX;
-	assert( (strlen(host) < sizeof(addr.sun_path) - 1));
-
-	// remove path in case artifacts were left from a previous run
-	unlink(host);
-
-	strncpy(addr.sun_path, host, sizeof(addr.sun_path) - 1);
-	return addr;
-}
-#endif
-
-struct sockaddr_in create_dgram_address(path_type host, int2Type<AF_INET>) {
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	std::cout << "UDP datagrams work" << '\n';
-	return addr;
-}
 
 
 // for datagrams
@@ -304,10 +334,6 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
 	using traits = typename SocketNode::traits;
 
 	std::unique_ptr<SocketNode> sock;
-
-  // indicates where errors occur in build pipeline, clients should check
-  // errno with GET_SOCKERRNO() to handle
-  SockError sock_err = SockError::ERR_NONE;
 
   socket_builder ()
 		: sock { new SocketNode }
@@ -320,7 +346,7 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
     sock->sd = ::socket(traits::value, SocketNode::socket_type, 0);
 
     if (!is_valid_socket(sock->sd))
-        sock_err |= SockError::ERR_SOCKET;
+        sock->sock_err |= SockError::ERR_SOCKET;
 
 
     return this;
@@ -332,7 +358,7 @@ struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Typ
     if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(&addr),
                sizeof(typename traits::addr_type)) == -1)
     {
-        sock_err |= SockError::ERR_BIND;
+        sock->sock_err |= SockError::ERR_BIND;
     }
 
     return this;
