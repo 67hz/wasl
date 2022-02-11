@@ -37,10 +37,11 @@ include(CTest)
 enable_testing()
 
 macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES TEST_WORKING_DIRECTORY)
+  file(COPY ${TEST_SCRIPTS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
   add_executable(${TESTNAME} ${FILES})
 
   if (UNIX)
-    target_link_libraries(${PROJECT_NAME}
+  target_link_libraries(${TESTNAME}
       PRIVATE
       Threads::Threads
       expect
@@ -64,13 +65,19 @@ file(TO_NATIVE_PATH ${TEST_SCRIPTS_DIR} testScripts)
 cmake_print_variables(CMAKE_CURRENT_SOURCE_DIR)
 cmake_print_variables(CMAKE_CURRENT_BINARY_DIR)
 cmake_print_variables(testScripts)
-file(COPY ${TEST_SCRIPTS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+
+#add_custom_target(
+#	copy_test_scripts ALL
+#	COMMAND
+#		file(COPY ${TEST_SCRIPTS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+#		)
 
 
 
 # lib tests
 package_add_test_with_libraries(vproxy_test VirtualProxy_test.cpp Wasl::Wasl "${PROJECT_DIR}")
-package_add_test_with_libraries(iomux_test IOMultiplexer_test.cpp wasl "${PROJECT_DIR}")
+#package_add_test_with_libraries(iomux_test IOMultiplexer_test.cpp wasl "${PROJECT_DIR}")
 package_add_test_with_libraries(socket_test Socket_test.cpp wasl "${PROJECT_DIR}")
 package_add_test_with_libraries(socketstream_test SocketStream_test.cpp wasl "${PROJECT_DIR}")
 

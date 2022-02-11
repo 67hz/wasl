@@ -41,6 +41,9 @@ template <typename SocketNode> struct socket_builder;
 template <typename Derived> struct socket_builder_base;
 template <int Family, int SocketType> class wasl_socket;
 
+// TODO use sockaddr_in.sa_family_t and remove traits
+// family will be filled in once address is created for struct so below
+// is only useful for compile time checking of types, but may be unnecessary.
 template <int SocketFamily>
 struct socket_traits {
 	static constexpr int value = SocketFamily;
@@ -154,6 +157,7 @@ typename traits::addr_type* create_address(path_type service, path_type host, in
 	return create_inet_address<Family, SocketType>(service, host);
 }
 
+#ifdef SYS_API_LINUX
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 typename traits::addr_type* create_address(path_type service, path_type host, int2Type<AF_UNIX>) {
 	struct sockaddr_un* addr = new sockaddr_un;
@@ -166,7 +170,7 @@ typename traits::addr_type* create_address(path_type service, path_type host, in
 	strncpy(addr->sun_path, host, sizeof(addr->sun_path) - 1);
 	return addr;
 }
-
+#endif
 
 
 /// Connect a wasl_socket to a peer's socket descriptor
@@ -352,6 +356,23 @@ struct socket_builder_base {
     return asDerived();
 	}
 
+	Derived* bind(path_type service, path_type host = "") {
+		// TODO create partial specialization or tag dispatch these?
+		auto addr = asDerived()->make_address(service, host);
+
+		if (::bind(sockno(*(asDerived()->sock)), reinterpret_cast<struct sockaddr *>(addr),
+							 sizeof(typename traits<Derived>::addr_type)) == -1)
+		{
+
+#ifndef NDEBUG
+//        std::cerr << "Bind error: " << strerror(GET_SOCKERRNO()) << '\n';
+#endif
+				asDerived()->sock->sock_err |= SockError::ERR_BIND;
+		}
+
+		return asDerived();
+	}
+
 
 };
 
@@ -369,42 +390,14 @@ template <typename SocketNode> struct socket_builder : public socket_builder_bas
   socket_builder ()
 	: sock { new SocketNode} { }
 
-#if 0
-  socket_builder *socket () {
-    sock->sd = ::socket(traits::value, socket_type, 0);
 
-    if (!is_valid_socket(sock->sd))
-        sock->sock_err |= SockError::ERR_SOCKET;
-
-		int optval {1};
-		if (setsockopt(sock->sd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
-			sock->sock_err |= SockError::ERR_SOCKET_OPT;
-
-    return this;
-
-	}
-#endif
-	// enable_if bind with path only for Unix domain sockets
-
-  socket_builder *bind (path_type service, path_type host = "") {
-
-		/// TODO tag dispatch for datagrams, Unix domain, ...
+	auto make_address(path_type service, path_type host = "") {
 		auto addr = create_address<family, socket_type>(service, host, int2Type<traits::value>());
-			if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(addr),
-								 sizeof(typename traits::addr_type)) == -1)
-			{
-
-#ifndef NDEBUG
-	//        std::cerr << "Bind error: " << strerror(GET_SOCKERRNO()) << '\n';
-#endif
-					sock->sock_err |= SockError::ERR_BIND;
-			}
-
-			return this;
+		return addr;
 	}
 
-
-  socket_builder *listen ();
+	// TODO reenable in partially specialized inet (TCP) builder
+  //socket_builder *listen ();
 
   explicit operator bool () const
   {
@@ -417,35 +410,6 @@ template <typename SocketNode> struct socket_builder : public socket_builder_bas
     return std::move(sock);
   }
 };
-
-
-
-#if 0
-// for datagrams
-template <typename SocketNode>
-struct socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Type<SOCK_DGRAM>, int2Type<SocketNode::socket_type>>::value>> : public socket_builder_base<socket_builder<SocketNode, typename std::enable_if_t<std::is_same<int2Type<SOCK_DGRAM>, int2Type<SocketNode::socket_type>>::value>> {
-
-	socket_builder *bind (path_type host) {
-	// tag dispatch based on socket family
-		auto addr = create_dgram_address(host, int2Type<traits::value>());
-    if (::bind(sockno(*sock), reinterpret_cast<struct sockaddr *>(&addr),
-               sizeof(typename traits::addr_type)) == -1)
-    {
-        sock->sock_err |= SockError::ERR_BIND;
-    }
-
-    return this;
-	}
-
-
-	std::unique_ptr<SocketNode>
-  build ()
-  {
-    return std::move(sock);
-  }
-};
-#endif
-
 
 
 /// makers for creating a unique_ptr to a wasl_socket
@@ -480,7 +444,7 @@ make_socket (path_type sock_path)
       std::move (socket));
 }
 
-/// TCP sockets maker
+/// inet sockets maker
 template <int Family, int SocketType,
           std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_in>::value,
                            bool> = true >

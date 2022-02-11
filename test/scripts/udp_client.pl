@@ -4,20 +4,37 @@
 #
 # A lightweight UDP client
 #
-# usage: ./udp_client.pl {path} {message}
+# usage: ./udp_client.pl {host} {port} {termination_string}
+#
+# termination_string - message to send to signal client to close socket
 #
 ##
 
 use strict;
-use warnings;
-use IO::Socket;
+use IO::Socket qw(:DEFAULT :crlf);
+use constant MAX_MSG_LEN => 128;
+$/ = CRLF;
 
-$handle = IO::Socket::INET->new(Proto => "udp"))
-	or die "socket: $!";
+my $host = shift || '127.0.0.1';
+my $port = shift || '9877';
+my $hangup = shift || "bye";
+my $data = "";
 
-die "Could not create socket: $!\n" unless $socket;
+my $socket = IO::Socket::INET->new (
+	Proto => 'udp',
+	PeerHost => $host,
+	PeerPort => $port) or die $@;
 
-my $msg = shift || "placeholder message";
-print $socket "$msg\n";
+$socket->send("client says howdy\n") or die "send() failed: $!\n";
+
+do {
+	print "hangup is :$hangup:\n";
+	print "data is :$data:\n";
+	$socket->recv($data, MAX_MSG_LEN) or die "recv() failed: $!\n";
+	chop($data);
+	print "data is :$data:\n";
+	$socket->send("$data");
+} while $data ne $hangup;
+
 
 close($socket);

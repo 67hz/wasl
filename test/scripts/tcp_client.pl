@@ -13,7 +13,7 @@ use warnings;
 use IO::Socket;
 
 my $socket = new IO::Socket::INET (
-	PeerAddr => shift || 'localhost',
+	PeerAddr => shift || '127.0.0.1',
 	PeerPort => shift || '9877',
 	Proto => 'tcp',
 );
