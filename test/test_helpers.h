@@ -93,21 +93,36 @@ namespace wasl {
 
 template <typename P,
 				 EnableIfSamePlatform<P, posix> = true>
-constexpr int run_process(const char* command) {
-	int ret = system(command);
+constexpr auto run_process(const char* command, const char* args, bool wait_child = false) {
 	/*
 	if (WIFSIGNALED(ret) &&
 			(WTERMSIG(ret) == SIGINT || WTERMSIG(ret) == SIGQUIT))
 			break;
 			*/
-	return 0;
+
+	pid_t cpid = fork();
+	if (cpid == -1) {
+    FAIL() << "fork";
+	}
+
+	if (cpid == 0) { // child context
+		int ret = execlp(command, args);
+    exit(testing::Test::HasFailure());
+	}
+	else { // parent context
+		if (wait_child) {
+      ASSERT_EQ(0, wait_for_child_fork(cpid));
+      exit(testing::Test::HasFailure());
+		}
+	}
+
 }
 
 #ifdef SYS_API_WIN32
 // Windows uses CreateProcess in lieue of fork()
 template <typename P,
 				 EnableIfSamePlatform<P, windows> = true>
-constexpr int run_process(const char* command) {
+constexpr auto run_process(const char* command, const char* args, bool wait_child = false) {
   STARTUPINFO si { sizeof(si) };
   PROCESS_INFORMATION pi;
   auto cmd = const_cast<char*>(command);
@@ -117,13 +132,15 @@ constexpr int run_process(const char* command) {
   if (success) {
     // close thread handle
     ::CloseHandle(pi.hThread);
-    ::WaitForSingleObject(pi.hProcess, INFINITE);
+		if (wait_child)
+			::WaitForSingleObject(pi.hProcess, INFINITE);
 
     // Close process handle
     ::CloseHandle(pi.hProcess);
   }
 
-	return 0;
+	// TODO return DWORD return code
+//	return 0;
 }
 #endif
 

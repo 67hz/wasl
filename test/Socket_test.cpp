@@ -131,6 +131,7 @@ TEST(socket_builder_tcp, CanBuildTCPSocketWithPortAndIPAddress) {
 	ASSERT_TRUE(is_open(*sockUP));
 }
 
+#if 0
 TEST(socket_tcp, CanReceiveDataFromClient) {
 	auto msg = "abc\n123."s;
 	// create listening socket
@@ -149,6 +150,7 @@ TEST(socket_tcp, CanReceiveDataFromClient) {
 	recvfrom(client_fd ,buf, 256, 0, NULL, NULL);
 	ASSERT_TRUE(strstr(buf, msg.c_str()));
 }
+#endif
 
 
 TEST(socket_builder_udp, CanBuildUDPSocketWithPortOnly) {
@@ -172,30 +174,26 @@ TEST(socket_builder_udp, CanBuildUDPSocketWithPortAndIPAddress) {
 
 
 TEST(socket_udp, CanReceiveDataFromClient) {
-	auto msg = "bye"s;
-	// create listening socket
-	auto srvUP { make_socket<AF_INET, SOCK_DGRAM>(SERVICE, srv_addr) };
+	const char send_buf[] = "test message";
+	const char terminate_buf[] = "bye";
 
-	// launch client
-	std::stringstream cmd;
-	cmd << "perl ./test/scripts/udp_client.pl " << HOST << " " << SERVICE;
+	auto server { make_socket<AF_INET, SOCK_DGRAM>(SERVICE, srv_addr) };
 
-	auto cpid = fork();
-	ASSERT_NE(cpid, -1);
+	const char* args[] = {"./test/scripts/udp_client.pl", HOST, SERVICE, terminate_buf};
+	wasl::run_process<wasl::platform_type>("perl", *args, false);
 
-	if (cpid == 0) {
-		// run in child process
-		wasl::run_process<wasl::platform_type>(cmd.str().c_str());
-	}
-
-//	wasl::run_process<wasl::platform_type>(cmd.str().c_str());
-	// read data
 	char buf[256];
 	struct sockaddr addr;
 	socklen_t len = sizeof(sockaddr_in);
-	recvfrom(sockno(*srvUP), buf, 256, 0, &addr, &len);
-	std::cout << "buf: " << buf << '\n';
-	ASSERT_TRUE(strstr(buf, msg.c_str()));
+	recvfrom(sockno(*server), buf, 256, 0, &addr, &len);
+	ASSERT_STREQ(buf, "howdy\n");
+
+	sendto(sockno(*server), send_buf, sizeof(send_buf), 0, &addr, len);
+	recvfrom(sockno(*server), buf, 256, 0, &addr, &len);
+
+	sendto(sockno(*server), terminate_buf, sizeof(terminate_buf), 0, &addr, len);
+
+	ASSERT_TRUE(strstr(buf, send_buf));
 }
 
 

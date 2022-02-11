@@ -2,7 +2,7 @@
 
 ###
 #
-# A lightweight UDP client
+# A lightweight UDP echo client
 #
 # usage: ./udp_client.pl {host} {port} {termination_string}
 #
@@ -25,14 +25,12 @@ my $socket = IO::Socket::INET->new (
 	PeerHost => $host,
 	PeerPort => $port) or die $@;
 
-$socket->send("client says howdy\n") or die "send() failed: $!\n";
+$socket->send("howdy\n") or die "send() failed: $!\n";
 
 do {
-	print "hangup is :$hangup:\n";
-	print "data is :$data:\n";
 	$socket->recv($data, MAX_MSG_LEN) or die "recv() failed: $!\n";
 	chop($data);
-	print "data is :$data:\n";
+	# echo back to server
 	$socket->send("$data");
 } while $data ne $hangup;
 
