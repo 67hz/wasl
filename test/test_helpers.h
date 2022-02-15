@@ -1,23 +1,45 @@
 #ifndef WASL_TEST_HELPERS_H
-#define WASL_TEST_HELPERS_H
-
 #include <thread>
+#include <gsl/string_span> // czstring
 
 #include <gtest/gtest.h>
 
 #include <wasl/Common.h>
 
-#if defined(SYS_API_WIN32)
-#include <Windows.h>
-
-#elif defined(SYS_API_LINUX)
-#include <sys/wait.h>
-#include <unistd.h>
-
 #define SRV_PATH "/tmp/wasl/srv"
 #define CL_PATH "/tmp/wasl/cl"
 #define HOST "127.0.0.1"
 #define SERVICE "9877"
+
+#if defined(SYS_API_WIN32)
+#include <Windows.h>
+#include <strsafe.h>
+
+#elif defined(SYS_API_LINUX)
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
+
+
+namespace wasl {
+
+class thread_guard {
+  std::thread &t;
+
+public:
+  explicit thread_guard(std::thread &t_) : t{t_} {}
+  ~thread_guard() {
+    if (t.joinable())
+      t.join();
+
+    exit(testing::Test::HasFailure());
+  }
+  thread_guard(thread_guard const &) = delete;
+  thread_guard &operator=(thread_guard const &) = delete;
+};
+
+#ifdef SYS_API_LINUX
 
 static int wait_for_child_fork(int pid) {
   int status;
@@ -70,30 +92,9 @@ auto fork_and_wait(F f, Types&&... args) {
   fw_impl();
 }
 
-class thread_guard {
-  std::thread &t;
-
-public:
-  explicit thread_guard(std::thread &t_) : t{t_} {}
-  ~thread_guard() {
-    if (t.joinable())
-      t.join();
-
-    exit(testing::Test::HasFailure());
-  }
-  thread_guard(thread_guard const &) = delete;
-  thread_guard &operator=(thread_guard const &) = delete;
-};
-
-#endif // fork-based posix helpers
-
-
-
-namespace wasl {
-
 template <typename P,
 				 EnableIfSamePlatform<P, posix> = true>
-constexpr auto run_process(const char* command, const char* args, bool wait_child = false) {
+auto run_process(const char* command, std::vector<gsl::czstring<>> args, bool wait_child = false) {
 	/*
 	if (WIFSIGNALED(ret) &&
 			(WTERMSIG(ret) == SIGINT || WTERMSIG(ret) == SIGQUIT))
@@ -115,32 +116,67 @@ constexpr auto run_process(const char* command, const char* args, bool wait_chil
       exit(testing::Test::HasFailure());
 		}
 	}
+}
+
+#endif // SYS_API_LINUX
+
+#ifdef SYS_API_WIN32
+
+void pr_err(LPTSTR lpszFunction) {
+  LPVOID lpMsgBuf;
+  LPVOID lpDisplayBuf;
+  DWORD dw = GetLastError();
+  DWORD system_locale = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+
+  FormatMessage(
+      FORMAT_MESSAGE_ALLOCATE_BUFFER |
+      FORMAT_MESSAGE_FROM_SYSTEM |
+      FORMAT_MESSAGE_IGNORE_INSERTS,
+      nullptr,
+      dw,
+      system_locale,
+      (LPTSTR) &lpMsgBuf,
+      0, nullptr);
+
+  lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT,
+      (lstrlen((LPCTSTR)lpMsgBuf) + lstrlen((LPCTSTR)lpszFunction) + 40) + sizeof(TCHAR));
+  StringCchPrintf((LPTSTR)lpDisplayBuf,
+      LocalSize(lpDisplayBuf) / sizeof(TCHAR),
+      TEXT("%s failed with error: %d: %s"),
+      lpszFunction, dw, lpMsgBuf);
+
+  std::cout << (LPCTSTR)lpDisplayBuf << '\n';
 
 }
 
-#ifdef SYS_API_WIN32
-// Windows uses CreateProcess in lieue of fork()
+
+// Windows uses CreateProcess in lieue of fork/exec
 template <typename P,
 				 EnableIfSamePlatform<P, windows> = true>
-constexpr auto run_process(const char* command, const char* args, bool wait_child = false) {
+auto run_process(const char* command, std::vector<gsl::czstring<>> args, bool wait_child = false) {
   STARTUPINFO si { sizeof(si) };
   PROCESS_INFORMATION pi;
-  auto cmd = const_cast<char*>(command);
 
-  bool success = ::CreateProcess(nullptr, TEXT(cmd), nullptr, nullptr, FALSE, 0,
+  // windows takes command line string as executable lus args
+  args.insert(args.begin(), command);
+
+  std::ostringstream cmd;
+  std::copy(args.begin(), args.end(), std::ostream_iterator<gsl::czstring<>>(cmd, " "));
+
+  bool success = ::CreateProcess(nullptr, TEXT(const_cast<char*>(cmd.str().c_str())), nullptr, nullptr, FALSE, 0,
       nullptr, nullptr, &si, &pi);
   if (success) {
     // close thread handle
     ::CloseHandle(pi.hThread);
-		if (wait_child)
-			::WaitForSingleObject(pi.hProcess, INFINITE);
+		if (wait_child) {
+			::WaitForSingleObject(pi.hProcess, INFINITE); 
+    }
 
     // Close process handle
     ::CloseHandle(pi.hProcess);
+  } else {
+    pr_err(TEXT("Wasl Test Helper: Run Process"));
   }
-
-	// TODO return DWORD return code
-//	return 0;
 }
 #endif
 

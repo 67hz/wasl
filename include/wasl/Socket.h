@@ -350,7 +350,7 @@ struct socket_builder_base {
         asDerived()->sock->sock_err |= SockError::ERR_SOCKET;
 
 		int optval {1};
-		if (setsockopt(asDerived()->sock->sd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+		if (setsockopt(asDerived()->sock->sd, SOL_SOCKET, SO_REUSEADDR, (const char*)&optval, sizeof(optval)) == -1)
 			asDerived()->sock->sock_err |= SockError::ERR_SOCKET_OPT;
 
     return asDerived();

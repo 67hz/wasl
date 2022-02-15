@@ -152,7 +152,6 @@ TEST(socket_tcp, CanReceiveDataFromClient) {
 }
 #endif
 
-
 TEST(socket_builder_udp, CanBuildUDPSocketWithPortOnly) {
 	std::unique_ptr<socket_udp> sockUP { socket_udp::
     create()->socket()->bind(SERVICE)->build() };
@@ -172,31 +171,27 @@ TEST(socket_builder_udp, CanBuildUDPSocketWithPortAndIPAddress) {
 	ASSERT_TRUE(is_open(*sockUP));
 }
 
-
-TEST(socket_udp, CanReceiveDataFromClient) {
-	const char send_buf[] = "test message";
-	const char terminate_buf[] = "bye";
+TEST(socket_udp, CanReceiveAndSendDataFromClient) {
+	char send_buf[] = "test message\n";
+	const char terminate_msg[] = "bye";
 
 	auto server { make_socket<AF_INET, SOCK_DGRAM>(SERVICE, srv_addr) };
 
-	const char* args[] = {"./test/scripts/udp_client.pl", HOST, SERVICE, terminate_buf};
-	wasl::run_process<wasl::platform_type>("perl", *args, false);
+  std::vector<gsl::czstring<>> args = {"test\/scripts\/udp_client.pl", HOST, SERVICE, terminate_msg};
 
-	char buf[256];
+	wasl::run_process<wasl::platform_type>("perl", args, false);
+
+	char recv_buf[256];
 	struct sockaddr addr;
 	socklen_t len = sizeof(sockaddr_in);
-	recvfrom(sockno(*server), buf, 256, 0, &addr, &len);
-	ASSERT_STREQ(buf, "howdy\n");
+
+	recvfrom(sockno(*server), recv_buf, sizeof(recv_buf), 0, &addr, &len);
+	ASSERT_STREQ(recv_buf, "howdy\n");
 
 	sendto(sockno(*server), send_buf, sizeof(send_buf), 0, &addr, len);
-	recvfrom(sockno(*server), buf, 256, 0, &addr, &len);
+	recvfrom(sockno(*server), recv_buf, sizeof(recv_buf), 0, &addr, &len);
+  std::cout << "recv_buf: " << recv_buf << std::endl;
+	ASSERT_TRUE(strstr(recv_buf, send_buf));
 
-	sendto(sockno(*server), terminate_buf, sizeof(terminate_buf), 0, &addr, len);
-
-	ASSERT_TRUE(strstr(buf, send_buf));
+	sendto(sockno(*server), terminate_msg, sizeof(terminate_msg), 0, &addr, len);
 }
-
-
-
-
-
