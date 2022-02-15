@@ -177,8 +177,7 @@ TEST(socket_udp, CanReceiveAndSendDataFromClient) {
 
 	auto server { make_socket<AF_INET, SOCK_DGRAM>(SERVICE, srv_addr) };
 
-  std::vector<gsl::czstring<>> args = {"test\/scripts\/udp_client.pl", HOST, SERVICE, terminate_msg};
-
+  std::vector<gsl::czstring<>> args = {"./test/scripts/udp_client.pl", HOST, SERVICE, terminate_msg};
 	wasl::run_process<wasl::platform_type>("perl", args, false);
 
 	char recv_buf[256];

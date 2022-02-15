@@ -101,13 +101,27 @@ auto run_process(const char* command, std::vector<gsl::czstring<>> args, bool wa
 			break;
 			*/
 
+	char* arg_arr[args.size() + 1]; // allow extra index for tail nullptr
+	// execvp* requires nullptr terminated
+	arg_arr[0] = const_cast<char*>(command);
+
+	arg_arr[args.size()] = nullptr;
+
+	for (auto i {1}; i < args.size(); ++i) {
+		arg_arr[i] = const_cast<char*>(args[i-1]);
+	}
+
 	pid_t cpid = fork();
 	if (cpid == -1) {
     FAIL() << "fork";
 	}
 
 	if (cpid == 0) { // child context
-		int ret = execlp(command, args);
+		int ret = execvp(command, arg_arr);
+
+		if (ret == -1)
+			FAIL() << strerror(errno);
+
     exit(testing::Test::HasFailure());
 	}
 	else { // parent context
