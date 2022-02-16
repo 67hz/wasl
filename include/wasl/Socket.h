@@ -37,6 +37,11 @@ namespace ip
 {
 using path_type = gsl::czstring<>;
 
+struct Address_info {
+	path_type service {};
+	path_type host {};
+};
+
 template <typename SocketNode> struct socket_builder;
 template <typename Derived> struct socket_builder_base;
 template <int Family, int SocketType> class wasl_socket;
@@ -373,6 +378,23 @@ struct socket_builder_base {
 		return asDerived();
 	}
 
+	Derived* bind(Address_info info) {
+		// TODO create partial specialization or tag dispatch these?
+		auto addr = asDerived()->make_address(info.service, info.host);
+
+		if (::bind(sockno(*(asDerived()->sock)), reinterpret_cast<struct sockaddr *>(addr),
+							 sizeof(typename traits<Derived>::addr_type)) == -1)
+		{
+
+#ifndef NDEBUG
+//        std::cerr << "Bind error: " << strerror(GET_SOCKERRNO()) << '\n';
+#endif
+				asDerived()->sock->sock_err |= SockError::ERR_BIND;
+		}
+
+		return asDerived();
+	}
+
 
 };
 
@@ -412,6 +434,8 @@ template <typename SocketNode> struct socket_builder : public socket_builder_bas
 };
 
 
+
+
 /// makers for creating a unique_ptr to a wasl_socket
 /// TODO add overloads for:
 /// passive_opens (e.g., TCP servers) adding listen() to builder chain
@@ -446,15 +470,11 @@ make_socket (path_type sock_path)
 
 /// inet sockets maker
 template <int Family, int SocketType,
-          std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_in>::value,
-                           bool> = true >
-auto
-make_socket (path_type service, path_type sock_path)
-{
+          std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_in>::value, bool> = true >
+auto make_socket (Address_info info) {
   auto socket{ wasl_socket<Family, SocketType>::create ()
                    ->socket ()
-                   ->bind (service, sock_path)
-                  // ->listen ()
+                   ->bind (info.service, info.host)
                    ->build () };
 
 	socket_listen(*socket);
@@ -468,7 +488,9 @@ make_socket (path_type service, path_type sock_path)
 
   return std::unique_ptr<wasl_socket<Family, SocketType> > (
       std::move (socket));
+
 }
+
 
 } // namespace ip
 } // namespace wasl

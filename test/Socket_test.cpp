@@ -79,7 +79,6 @@ TEST(unix_domain_sockets, CanReadAndWrite) {
 //	auto srvUP { make_socket<sockaddr_un, SOCK_DGRAM>(srv_path) };
 //	auto srv_fd { sockno(*srvUP) };
 
-
 #if 0
 	sockstream ss_srv(srv_fd);
 
@@ -100,21 +99,11 @@ TEST(unix_domain_sockets, CanReadAndWrite) {
 #endif
 
 
-#if 0
-TEST(socket, CanConnectToPeerOnSameHost) {
-	auto s1 { make_socket<AF_LOCAL, SOCK_DGRAM>(srv_path) };
-	auto s2 { make_socket<AF_LOCAL, SOCK_DGRAM>(client_path) };
-}
-
-
-#endif
-
-
-
 
 TEST(socket_builder_tcp, CanBuildTCPSocketWithPortOnly) {
-	std::unique_ptr<socket_tcp> sockUP { socket_tcp::
-    create()->socket()->bind(SERVICE)->build() };
+	//std::unique_ptr<socket_tcp> sockUP { socket_tcp::
+  //  create()->socket()->bind(SERVICE)->build() };
+	auto sockUP = make_socket<AF_INET, SOCK_STREAM>({.service = SERVICE});
 
 	socket_listen(*sockUP);
 
@@ -134,7 +123,7 @@ TEST(socket_builder_tcp, CanBuildTCPSocketWithPortAndIPAddress) {
 TEST(socket_tcp, CanReceiveDataFromClient) {
 	const char msg[] = "abc123\n";
 	// create listening socket
-	auto srvUP { make_socket<AF_INET, SOCK_STREAM>(SERVICE, srv_addr) };
+	auto srvUP { make_socket<AF_INET, SOCK_STREAM>({.service = SERVICE, .host = srv_addr}) };
 
 	// launch client
 	std::stringstream cmd;
@@ -156,7 +145,6 @@ TEST(socket_builder_udp, CanBuildUDPSocketWithPortOnly) {
     create()->socket()->bind(SERVICE)->build() };
 
 	socket_listen(*sockUP);
-
 	ASSERT_NE(sockno(*sockUP), INVALID_SOCKET);
 	ASSERT_TRUE(is_open(*sockUP));
 }
@@ -174,7 +162,7 @@ TEST(socket_udp, CanReceiveAndSendDataFromClient) {
 	char send_buf[] = "test message\n";
 	const char terminate_msg[] = "bye";
 
-	auto server { make_socket<AF_INET, SOCK_DGRAM>(SERVICE, srv_addr) };
+	auto server { make_socket<AF_INET, SOCK_DGRAM>({SERVICE, srv_addr}) };
 
   std::vector<gsl::czstring<>> args = {"./test/scripts/udp_client.pl", HOST, SERVICE, terminate_msg};
 	wasl::run_process<wasl::platform_type>("perl", args, false);

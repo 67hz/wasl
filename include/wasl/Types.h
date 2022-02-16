@@ -64,6 +64,18 @@ struct is_socket
 template <typename T, typename V = bool>
 using EnableIfSocketType = std::enable_if_t<is_socket<T>::value, V>;
 
+template <typename T>
+struct is_inet_socket
+    : std::integral_constant<bool,
+                                 std::is_same<T, struct sockaddr_in>::value ||
+                                 std::is_same<T, struct sockaddr_in6>::value> {
+};
+
+template <typename T, typename V = bool>
+using EnableIfInetSocketType = std::enable_if_t<is_inet_socket<T>::value, V>;
+
+
+
 #ifndef _WIN32 /* Posix */
 
 constexpr static int INVALID_SOCKET = -1;
