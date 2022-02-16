@@ -46,9 +46,8 @@ template <typename SocketNode> struct socket_builder;
 template <typename Derived> struct socket_builder_base;
 template <int Family, int SocketType> class wasl_socket;
 
-// TODO use sockaddr_in.sa_family_t and remove traits
-// family will be filled in once address is created for struct so below
-// is only useful for compile time checking of types, but may be unnecessary.
+// \NOTE sockaddr_in.sa_family_t holds family in struct but for compile-time
+// these traits are useful.
 template <int SocketFamily>
 struct socket_traits {
 	static constexpr int value = SocketFamily;
@@ -355,26 +354,9 @@ struct socket_builder_base {
     return asDerived();
 	}
 
-	Derived* bind(path_type service, path_type host = "") {
-		// TODO create partial specialization or tag dispatch these?
-		auto addr = asDerived()->make_address(service, host);
-
-		if (::bind(sockno(*(asDerived()->sock)), reinterpret_cast<struct sockaddr *>(addr),
-							 sizeof(typename traits<Derived>::addr_type)) == -1)
-		{
-
-#ifndef NDEBUG
-//        std::cerr << "Bind error: " << strerror(GET_SOCKERRNO()) << '\n';
-#endif
-				asDerived()->sock->sock_err |= SockError::ERR_BIND;
-		}
-
-		return asDerived();
-	}
-
 	Derived* bind(Address_info info) {
 		// TODO create partial specialization or tag dispatch these?
-		auto addr = asDerived()->make_address(info.service, info.host);
+		auto addr = asDerived()->make_address(info);
 
 		if (::bind(sockno(*(asDerived()->sock)), reinterpret_cast<struct sockaddr *>(addr),
 							 sizeof(typename traits<Derived>::addr_type)) == -1)
@@ -407,8 +389,8 @@ template <typename SocketNode> struct socket_builder : public socket_builder_bas
 	: sock { new SocketNode} { }
 
 
-	auto make_address(path_type service, path_type host = "") {
-		auto addr = create_address<family, socket_type>(service, host, std::integral_constant<int, traits::value>());
+	auto make_address(Address_info info) {
+		auto addr = create_address<family, socket_type>(info.service, info.host, std::integral_constant<int, traits::value>());
 		return addr;
 	}
 
@@ -430,45 +412,21 @@ template <typename SocketNode> struct socket_builder : public socket_builder_bas
 
 
 
-/// makers for creating a unique_ptr to a wasl_socket
+/// Make a unique_ptr to a wasl_socket
 /// TODO add overloads for:
 /// passive_opens (e.g., TCP servers) adding listen() to builder chain
 /// active opens (e.g., client sockets) adding connect() to builder chain
 /// see Stevens UNPp34
-/// \tparam Family Any of struct sockaddr_x socket types e.g.: { sockaddr_un,
-/// sockaddr_in, ...}
+/// \tparam Family Any of AF_INET, AF_INET6, SOCKADDR_UN
 /// \tparam SocketType socket type used in socket() call
 /// e.g.: {SOCK_STREAM, SOCK_DGRAM, SOCK_RAW, ...}
-/// Unix domain Datagram sockets maker
-template <int Family, int SocketType,
-          std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_un>::value,
-                           bool> = true >
-auto
-make_socket (path_type path)
-{
-  auto socket{ wasl_socket<Family, SocketType>::create ()
-                   ->socket ()
-                   ->bind (path)
-                   ->build () };
-
-#ifndef NDEBUG
-  if (!socket)
-    {
-     // std::cerr << strerror (GET_SOCKERRNO ()) << '\n';
-    }
-#endif
-
-  return std::unique_ptr<wasl_socket<Family, SocketType> > (
-      std::move (socket));
-}
-
 /// inet sockets maker
 template <int Family, int SocketType,
 					EnableIfSocketType<typename socket_traits<Family>::addr_type> = true >
-auto make_socket (Address_info info) {
+std::unique_ptr<wasl_socket<Family, SocketType>> make_socket (Address_info info) {
   auto socket{ wasl_socket<Family, SocketType>::create ()
                    ->socket ()
-                   ->bind (info.service, info.host)
+                   ->bind (info)
                    ->build () };
 
 	socket_listen(*socket);

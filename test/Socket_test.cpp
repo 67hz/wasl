@@ -23,7 +23,7 @@ using socket_dgram = wasl_socket<AF_INET, SOCK_DGRAM>;
 
 TEST(socket_utils, GetAddressFromSocketDescriptor) {
 	std::unique_ptr<socket_tcp> sock { socket_tcp::
-		create()->socket()->bind(SERVICE, srv_addr)->build() };
+		create()->socket()->bind({SERVICE, srv_addr})->build() };
 	auto addr = get_address(sockno(*sock));
 	in_addr ip;
 	auto res = inet_pton(AF_INET, srv_addr, &ip);
@@ -44,7 +44,7 @@ TEST(socket_utils, GetAddressFromSocketDescriptor) {
 
 TEST(socket_utils, GetSocketFamilyFromSocketDescriptor) {
 	auto sock_uptr { socket_tcp::
-		create()->socket()->bind(SERVICE)->build() };
+		create()->socket()->bind({SERVICE})->build() };
 	auto family = sockfd_to_family(sockno(*sock_uptr));
 	ASSERT_EQ(family, AF_INET);
 }
@@ -61,7 +61,7 @@ using socket_local = wasl_socket<AF_UNIX, SOCK_DGRAM>;
 
 TEST(socket_builder_unix_domain, CanBuildUnixDomainDatagram) {
 	std::unique_ptr<socket_local> sock { socket_local::
-		create()->socket()->bind(srv_path)->build() };
+		create()->socket()->bind({.host = srv_path})->build() };
 
 	ASSERT_TRUE(is_open(*sock));
 	ASSERT_NE(sockno(*sock), INVALID_SOCKET);
@@ -69,7 +69,7 @@ TEST(socket_builder_unix_domain, CanBuildUnixDomainDatagram) {
 }
 
 TEST(socket_builder_unix_domain, MakeHelperUnixDomainDatagram) {
-	auto sock { make_socket<AF_LOCAL, SOCK_DGRAM>(srv_path) };
+	auto sock { make_socket<AF_LOCAL, SOCK_DGRAM>({.host = srv_path}) };
 	ASSERT_NE(sockno(*sock), INVALID_SOCKET);
   ASSERT_TRUE(is_open(*sock));
 }
@@ -113,7 +113,7 @@ TEST(socket_builder_tcp, CanBuildTCPSocketWithPortOnly) {
 
 TEST(socket_builder_tcp, CanBuildTCPSocketWithPortAndIPAddress) {
 	std::unique_ptr<socket_tcp> sockUP { socket_tcp::
-    create()->socket()->bind(SERVICE, srv_addr)->build() };
+    create()->socket()->bind({SERVICE, srv_addr})->build() };
 
 	socket_listen(*sockUP);
 
@@ -142,7 +142,7 @@ TEST(socket_tcp, CanReceiveDataFromClient) {
 
 TEST(socket_builder_udp, CanBuildUDPSocketWithPortOnly) {
 	std::unique_ptr<socket_udp> sockUP { socket_udp::
-    create()->socket()->bind(SERVICE)->build() };
+    create()->socket()->bind({SERVICE})->build() };
 
 	socket_listen(*sockUP);
 	ASSERT_NE(sockno(*sockUP), INVALID_SOCKET);
@@ -151,7 +151,7 @@ TEST(socket_builder_udp, CanBuildUDPSocketWithPortOnly) {
 
 TEST(socket_builder_udp, CanBuildUDPSocketWithPortAndIPAddress) {
 	std::unique_ptr<socket_udp> sockUP { socket_udp::
-    create()->socket()->bind(SERVICE, srv_addr)->build() };
+    create()->socket()->bind({.service =  SERVICE, .host = srv_addr})->build() };
 
 	socket_listen(*sockUP);
 
