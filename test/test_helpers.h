@@ -61,10 +61,10 @@ template <typename F1, typename F2> auto fork_and_wait(F1&& f1, F2&& f2) {
   if (cpid == 0) { // child context
     f2();
     exit(testing::Test::HasFailure());
-  } else { // parent context
+  } else { // parent context (original callee context)
     f1();
     ASSERT_EQ(0, wait_for_child_fork(cpid));
-    exit(testing::Test::HasFailure());
+//    exit(testing::Test::HasFailure());
   }
 }
 

@@ -101,15 +101,6 @@ struct sockaddr_storage get_address (SOCKET sfd)
   return res;
 }
 
-
-#ifdef SYS_API_LINUX
-struct sockaddr_un create_dgram_address(path_type host, std::integral_constant<int, AF_UNIX>) {
-	struct sockaddr_un addr;
-	return addr;
-}
-#endif
-
-
 /// create AF_INET, AF_INET6 as  DGRAMS or SOCK_STREAM
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 auto create_inet_address(path_type service, path_type host) {
@@ -131,8 +122,6 @@ auto create_inet_address(path_type service, path_type host) {
 		if (rc != 0) {
 			/// \TODO handle error
 		}
-
-
 
 #if 0
 		if (rc != 0) {
@@ -174,21 +163,20 @@ typename traits::addr_type* create_address(path_type service, path_type host, st
 /// Connect a wasl_socket to a peer's socket descriptor
 /// \param node SocketNode
 /// \param link socket fd containing address to connect with
-template <int Family, int Socket_Type, EnableIfSocketType<typename wasl_socket<Family, Socket_Type>::traits::addr_type> = true >
+template <int Family, int Socket_Type, EnableIfSocketType<typename socket_traits<Family>::addr_type> = true, socklen_t len = sizeof(typename socket_traits<Family>::addr_type)>
 SOCKET
 socket_connect (const wasl_socket<Family, Socket_Type> &node, SOCKET link)
 {
-  if (!node)
+  if (!is_valid_socket(sockno(node)))
     {
       return INVALID_SOCKET;
     }
 
   auto srv_addr = get_address(link);
-  return connect (sockno (node), (SOCKADDR *)&(srv_addr), sizeof (srv_addr));
-
+  return connect (sockno (node), (SOCKADDR *)&(srv_addr), len);
 }
 
-template <int Family, int Socket_Type, EnableIfSocketType<typename wasl_socket<Family, Socket_Type>::traits::addr_type> = true >
+template <int Family, int Socket_Type, EnableIfSocketType<typename socket_traits<Family>::addr_type> = true >
 SOCKET
 socket_listen (const wasl_socket<Family, Socket_Type> &node)
 {
@@ -203,7 +191,7 @@ socket_listen (const wasl_socket<Family, Socket_Type> &node)
 template <int Family, int Socket_Type, typename traits = typename wasl_socket<Family, Socket_Type>::traits, EnableIfSocketType<typename traits::addr_type> = true ,
           socklen_t len = (sizeof (typename traits::addr_type))>
 SOCKET
-socket_accept (wasl_socket<Family, Socket_Type> *listening_node)
+socket_accept (const wasl_socket<Family, Socket_Type> *listening_node)
 {
   if (!listening_node)
     {
@@ -428,8 +416,6 @@ std::unique_ptr<wasl_socket<Family, SocketType>> make_socket (Address_info info)
                    ->socket ()
                    ->bind (info)
                    ->build () };
-
-	socket_listen(*socket);
 
 #ifndef NDEBUG
   if (!socket)

@@ -2,6 +2,11 @@
 #include <string>
 #include <memory>
 
+#ifdef SYS_API_LINUX
+#include <sys/stat.h>
+#include <sys/sysmacros.h>
+#endif
+
 #include <type_traits>
 
 #include "test_helpers.h"
@@ -57,44 +62,107 @@ TEST(socket_state, CanStoreErrorFlags) {
 }
 
 #ifdef SYS_API_LINUX
-using socket_local = wasl_socket<AF_UNIX, SOCK_DGRAM>;
+using socket_local_dgram = wasl_socket<AF_UNIX, SOCK_DGRAM>;
+using socket_local_stream = wasl_socket<AF_UNIX, SOCK_STREAM>;
+
+static void assert_sock_path_exists(gsl::czstring<> sock_path) {
+	// check existence of path in system
+	struct stat sb;
+	auto file_info = lstat(srv_path, &sb);
+	ASSERT_NE(file_info, -1);
+	ASSERT_EQ((sb.st_mode & S_IFMT), S_IFSOCK);
+}
+
 
 TEST(socket_builder_unix_domain, CanBuildUnixDomainDatagram) {
-	std::unique_ptr<socket_local> sock { socket_local::
+	std::unique_ptr<socket_local_dgram> sock { socket_local_dgram::
 		create()->socket()->bind({.host = srv_path})->build() };
 
 	ASSERT_TRUE(is_open(*sock));
 	ASSERT_NE(sockno(*sock), INVALID_SOCKET);
 	ASSERT_TRUE(sock);
+
+	assert_sock_path_exists(srv_path);
+
+}
+
+TEST(socket_builder_unix_domain, CanBuildUnixDomainStream) {
+	std::unique_ptr<socket_local_stream> sock { socket_local_stream::
+		create()->socket()->bind({.host = srv_path})->build() };
+
+	ASSERT_TRUE(is_open(*sock));
+	ASSERT_NE(sockno(*sock), INVALID_SOCKET);
+
+	assert_sock_path_exists(srv_path);
 }
 
 TEST(socket_builder_unix_domain, MakeHelperUnixDomainDatagram) {
 	auto sock { make_socket<AF_LOCAL, SOCK_DGRAM>({.host = srv_path}) };
 	ASSERT_NE(sockno(*sock), INVALID_SOCKET);
   ASSERT_TRUE(is_open(*sock));
+	assert_sock_path_exists(srv_path);
 }
 
-TEST(unix_domain_sockets, CanReadAndWrite) {
-	auto msg = "some_message"s;
-//	auto srvUP { make_socket<sockaddr_un, SOCK_DGRAM>(srv_path) };
-//	auto srv_fd { sockno(*srvUP) };
+TEST(socket_builder_unix_domain, MakeHelperUnixDomainStream) {
+	auto sock { make_socket<AF_LOCAL, SOCK_STREAM>({.host = srv_path}) };
+	ASSERT_NE(sockno(*sock), INVALID_SOCKET);
+  ASSERT_TRUE(is_open(*sock));
+	assert_sock_path_exists(srv_path);
+}
 
-#if 0
-	sockstream ss_srv(srv_fd);
+TEST(unix_domain_sockets_datagram, CanReadAndWrite) {
+	char msg[]= "some_message";
+	auto srvUP { make_socket<AF_LOCAL, SOCK_DGRAM>({.host = srv_path}) };
+	auto srv_fd { sockno(*srvUP) };
 
-	fork_and_wait([ss = &ss_srv, msg] {
-		// parent reads
-		std::string res;
-		*ss >> res;
-		ASSERT_EQ(res, msg);
-	}, [msg, srv_fd]() {
-		// child writes
-		auto client_sock { make_socket<sockaddr_un, SOCK_DGRAM>(client_path) };
-		socket_connect(client_sock.get(), srv_fd);
-		sockstream ss_cl(sockno(*client_sock));
-		ss_cl << msg << std::endl;
+	wasl::fork_and_wait([srv = *srvUP, msg] {
+		// parent receives
+		char buf[BUFSIZ];
+		struct sockaddr_un claddr;
+		socklen_t len;
+
+		auto num_bytes = recvfrom(sockno(srv), buf, BUFSIZ, 0,
+				(struct sockaddr *) &claddr, &len);
+		ASSERT_STREQ(buf, msg);
+
+	}, [msg, srv = *srvUP]() {
+		// child sends
+		auto client_sock { make_socket<AF_LOCAL, SOCK_DGRAM>({.host= client_path}) };
+		std::unique_ptr<struct sockaddr_un> srv_addr {address(srv)};
+		if (sendto(sockno(*client_sock), msg, sizeof(msg), 0, (struct sockaddr *)(srv_addr.get()), sizeof(struct sockaddr_un)) == -1)
+			std::cerr << strerror(errno) << '\n';
 	});
-#endif
+}
+
+TEST(unix_domain_sockets_stream, CanReadAndWrite) {
+	char msg[]= "some_message";
+	auto srvUP { make_socket<AF_LOCAL, SOCK_STREAM>({.host = srv_path}) };
+	auto srv_fd { sockno(*srvUP) };
+
+	wasl::fork_and_wait([srv = *srvUP, msg] {
+		// parent receives
+		char buf[BUFSIZ];
+		struct sockaddr_un claddr;
+		socklen_t len;
+
+		socket_listen(srv);
+		socket_accept(&srv);
+
+		auto num_bytes = recvfrom(sockno(srv), buf, BUFSIZ, 0,
+				(struct sockaddr *) &claddr, &len);
+		ASSERT_STREQ(buf, msg);
+
+	}, [msg, srv = *srvUP]() {
+		// child sends
+		auto client_sock { make_socket<AF_LOCAL, SOCK_STREAM>({.host = client_path}) };
+
+
+		if (socket_connect(*client_sock, sockno(srv)) == -1)
+			FAIL() << strerror(errno);
+
+		if (write(sockno(*client_sock), msg, sizeof(msg)) != sizeof(msg))
+			std::cerr << "write error: " << strerror(errno) << '\n';
+	});
 }
 #endif
 
@@ -124,6 +192,7 @@ TEST(socket_tcp, CanReceiveDataFromClient) {
 	const char msg[] = "abc123\n";
 	// create listening socket
 	auto srvUP { make_socket<AF_INET, SOCK_STREAM>({.service = SERVICE, .host = srv_addr}) };
+	socket_listen(*srvUP);
 
 	// launch client
 	std::stringstream cmd;
