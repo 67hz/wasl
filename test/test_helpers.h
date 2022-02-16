@@ -103,11 +103,10 @@ auto run_process(const char* command, std::vector<gsl::czstring<>> args, bool wa
 
 	char* arg_arr[args.size() + 1]; // allow extra index for tail nullptr
 	// execvp* requires nullptr terminated
-	arg_arr[0] = const_cast<char*>(command);
+	arg_arr[0] = const_cast<char*>(command); // posix takes command as first args arg by convention
+	arg_arr[args.size()+1] = nullptr;
 
-	arg_arr[args.size()] = nullptr;
-
-	for (auto i {1}; i < args.size(); ++i) {
+	for (auto i {1}; i < args.size()+1; ++i) {
 		arg_arr[i] = const_cast<char*>(args[i-1]);
 	}
 
@@ -160,7 +159,6 @@ void pr_err(LPTSTR lpszFunction) {
       lpszFunction, dw, lpMsgBuf);
 
   std::cout << (LPCTSTR)lpDisplayBuf << '\n';
-
 }
 
 
