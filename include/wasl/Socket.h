@@ -444,11 +444,11 @@ template <int Family, int SocketType,
           std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_un>::value,
                            bool> = true >
 auto
-make_socket (path_type sock_path)
+make_socket (path_type path)
 {
   auto socket{ wasl_socket<Family, SocketType>::create ()
                    ->socket ()
-                   ->bind (sock_path)
+                   ->bind (path)
                    ->build () };
 
 #ifndef NDEBUG
@@ -464,7 +464,7 @@ make_socket (path_type sock_path)
 
 /// inet sockets maker
 template <int Family, int SocketType,
-          std::enable_if_t<std::is_same<typename socket_traits<Family>::addr_type, struct sockaddr_in>::value, bool> = true >
+					EnableIfSocketType<typename socket_traits<Family>::addr_type> = true >
 auto make_socket (Address_info info) {
   auto socket{ wasl_socket<Family, SocketType>::create ()
                    ->socket ()
