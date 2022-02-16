@@ -77,12 +77,6 @@ struct socket_traits<AF_LOCAL> { // == AF_UNIX
 
 namespace {
 
-template <int v>
-struct int2Type {
-	using type = int2Type<v>;
-	static constexpr int value = v;
-};
-
 /// Return underlying socket family given a socketfd.
 /// \note see Stevens UNPp109
 int sockfd_to_family(SOCKET sfd) {
@@ -110,7 +104,7 @@ struct sockaddr_storage get_address (SOCKET sfd)
 
 
 #ifdef SYS_API_LINUX
-struct sockaddr_un create_dgram_address(path_type host, int2Type<AF_UNIX>) {
+struct sockaddr_un create_dgram_address(path_type host, std::integral_constant<int, AF_UNIX>) {
 	struct sockaddr_un addr;
 	return addr;
 }
@@ -153,18 +147,18 @@ auto create_inet_address(path_type service, path_type host) {
 }
 
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-typename traits::addr_type* create_address(path_type service, path_type host, int2Type<AF_INET>) {
+typename traits::addr_type* create_address(path_type service, path_type host, std::integral_constant<int, AF_INET>) {
 	return create_inet_address<Family, SocketType>(service, host);
 }
 
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-typename traits::addr_type* create_address(path_type service, path_type host, int2Type<AF_INET6>) {
+typename traits::addr_type* create_address(path_type service, path_type host, std::integral_constant<int, AF_INET6>) {
 	return create_inet_address<Family, SocketType>(service, host);
 }
 
 #ifdef SYS_API_LINUX
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-typename traits::addr_type* create_address(path_type service, path_type host, int2Type<AF_UNIX>) {
+typename traits::addr_type* create_address(path_type service, path_type host, std::integral_constant<int, AF_UNIX>) {
 	struct sockaddr_un* addr = new sockaddr_un;
 	addr->sun_family = AF_UNIX;
 	assert( (strlen(host) < sizeof(addr->sun_path) - 1));
@@ -414,7 +408,7 @@ template <typename SocketNode> struct socket_builder : public socket_builder_bas
 
 
 	auto make_address(path_type service, path_type host = "") {
-		auto addr = create_address<family, socket_type>(service, host, int2Type<traits::value>());
+		auto addr = create_address<family, socket_type>(service, host, std::integral_constant<int, traits::value>());
 		return addr;
 	}
 
