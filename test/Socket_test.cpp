@@ -47,10 +47,10 @@ TEST(socket_utils, GetAddressFromSocketDescriptor) {
 }
 
 
-TEST(socket_utils, GetSocketFamilyFromSocketDescriptor) {
-	auto sock_uptr { socket_tcp::
+TEST(socket_utils, GetStreamSocketFamilyFromSocketDescriptor) {
+	auto sock_tcp { socket_tcp::
 		create()->socket()->bind({SERVICE})->build() };
-	auto family = sockfd_to_family(sockno(*sock_uptr));
+	auto family = sockfd_to_family(sockno(*sock_tcp));
 	ASSERT_EQ(family, AF_INET);
 }
 
@@ -73,6 +73,12 @@ static void assert_sock_path_exists(gsl::czstring<> sock_path) {
 	ASSERT_EQ((sb.st_mode & S_IFMT), S_IFSOCK);
 }
 
+TEST(socket_utils, GetUnixSocketFamilyFromSocketDescriptor) {
+	auto sock_unix { socket_local_stream::
+		create()->socket()->bind({.host = srv_path})->build() };
+	auto family = sockfd_to_family(sockno(*sock_unix));
+	ASSERT_EQ(family, AF_UNIX);
+}
 
 TEST(socket_builder_unix_domain, CanBuildUnixDomainDatagram) {
 	std::unique_ptr<socket_local_dgram> sock { socket_local_dgram::

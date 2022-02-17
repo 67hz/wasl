@@ -222,8 +222,16 @@ public:
   // errno with GET_SOCKERRNO() to handle
   SockError sock_err = SockError::ERR_NONE;
 
-  ~wasl_socket ()
-  {
+#ifdef SYS_API_LINUX
+	void destroy(std::integral_constant<int, AF_UNIX>) {
+		auto addr {address(*this)};
+		if (addr->sun_path)
+			remove(addr->sun_path);
+	}
+#endif
+
+	// stream sockets
+	void destroy(...) {
     if (is_valid_socket (sd))
       {
 #ifndef NDEBUG
@@ -231,13 +239,15 @@ public:
 #endif
         closesocket (sd);
       }
+	}
+
+  ~wasl_socket ()
+  {
+		destroy(std::integral_constant<int, traits::value>());
 
 #ifdef SYS_API_WIN32
     WSACleanup();
 #endif
-
-    // TODO check platform here
-    // unlink(_addr->sun_path);
   }
 
   auto
