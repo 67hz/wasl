@@ -3,7 +3,7 @@ include(FetchContent)
 FetchContent_Declare(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG release-1.10.0
+  GIT_TAG release-1.11.0
 )
 
 FetchContent_GetProperties(googletest)
@@ -18,8 +18,7 @@ if(NOT googletest_POPULATED)
     set(gtest_disable_pthreads ON CACHE BOOL "" FORCE)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
   elseif(UNIX)
-  find_package(Threads REQUIRED)
-
+    find_package(Threads REQUIRED)
   endif()
 
   add_subdirectory(
@@ -44,12 +43,11 @@ macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES TEST_WORKING_DIRE
   target_link_libraries(${TESTNAME}
       PRIVATE
       Threads::Threads
-      expect
       )
 
   endif()
 
-  target_link_libraries(${TESTNAME} PRIVATE gtest_main gmock_main ${LIBRARIES})
+  target_link_libraries(${TESTNAME} PRIVATE gtest_main ${LIBRARIES})
 
   gtest_discover_tests(${TESTNAME}
     WORKING_DIRECTORY ${TEST_WORKING_DIRECTORY}

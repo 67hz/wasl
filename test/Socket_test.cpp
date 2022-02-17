@@ -19,8 +19,8 @@ using namespace wasl::ip;
 using wasl::local::toUType;
 
 constexpr gsl::czstring<> srv_addr{HOST};
-constexpr gsl::czstring<> srv_path{"/tmp/wasl/srv"};
-constexpr gsl::czstring<> client_path{"/tmp/wasl/client"};
+constexpr gsl::czstring<> srv_path{"/tmp/wasl_srv"};
+constexpr gsl::czstring<> client_path{"/tmp/wasl_client"};
 
 using socket_tcp = wasl_socket<AF_INET, SOCK_STREAM>;
 using socket_udp = wasl_socket<AF_INET, SOCK_DGRAM>;
