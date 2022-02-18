@@ -35,9 +35,20 @@ include(GoogleTest)
 include(CTest)
 enable_testing()
 
+set(TEST_SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
+file(TO_NATIVE_PATH ${TEST_SCRIPTS_DIR} testScripts)
+file(GLOB test_helpers CONFIGURE_DEPENDS "${TEST_SCRIPTS_DIR}/*.pl")
+cmake_print_variables(test_helpers)
+
 macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES TEST_WORKING_DIRECTORY)
-  file(COPY ${TEST_SCRIPTS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-  add_executable(${TESTNAME} ${FILES})
+  add_executable(${TESTNAME} ${FILES} ${test_helpers})
+
+  add_custom_command(
+    TARGET ${TESTNAME}
+    POST_BUILD
+    COMMAND
+    "${CMAKE_COMMAND}" -E copy_directory ${TEST_SCRIPTS_DIR} ${CMAKE_CURRENT_BINARY_DIR}/scripts
+    )
 
   if (UNIX)
   target_link_libraries(${TESTNAME}
@@ -58,20 +69,16 @@ macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES TEST_WORKING_DIRE
   set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
 endmacro()
 
-set(TEST_SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
-file(TO_NATIVE_PATH ${TEST_SCRIPTS_DIR} testScripts)
+
 cmake_print_variables(CMAKE_CURRENT_SOURCE_DIR)
 cmake_print_variables(CMAKE_CURRENT_BINARY_DIR)
 cmake_print_variables(testScripts)
 
-
-#add_custom_target(
-#	copy_test_scripts ALL
-#	COMMAND
-#		file(COPY ${TEST_SCRIPTS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-#		)
-
-
+add_custom_target(
+  cp_test_scripts ALL
+	COMMAND
+  "${CMAKE_COMMAND}" -E copy_directory ${TEST_SCRIPTS_DIR} ${CMAKE_CURRENT_BINARY_DIR}/scripts
+		)
 
 # lib tests
 package_add_test_with_libraries(vproxy_test VirtualProxy_test.cpp Wasl::Wasl "${PROJECT_DIR}")

@@ -36,7 +36,7 @@ TEST(socket_utils, GetAddressFromSocketDescriptor) {
 	// convert addresses back to text form and check string equality
   char res_nwbuf[INET_ADDRSTRLEN];
   char nwbuf[INET_ADDRSTRLEN];
-	auto res_nwaddr = inet_ntop(AF_INET, &(res_sockaddr->sin_addr), res_nwbuf, INET_ADDRSTRLEN);
+	auto res_nwaddr =inet_ntop(AF_INET, &(res_sockaddr->sin_addr), res_nwbuf, INET_ADDRSTRLEN);
 	auto nw_addr = inet_ntop(AF_INET, &(SA->sin_addr), nwbuf, INET_ADDRSTRLEN);
 	ASSERT_STREQ(res_nwbuf, nwbuf);
 }
@@ -194,17 +194,20 @@ TEST(socket_builder_tcp, CanBuildTCPSocketWithPortAndIPAddress) {
 
 TEST(socket_tcp, CanReceiveAndSendDataFromClient) {
 	// create listening socket
-	auto server { make_socket<AF_INET6, SOCK_STREAM>({.service = SERVICE, .host = HOST6, .reuse_addr = false}) };
+	auto server { make_socket<AF_INET, SOCK_STREAM>({
+							.service = SERVICE,
+							.host = HOST,
+							.reuse_addr = true}) };
 	socket_listen(*server);
 	char msg[] = "howdy";
-	char msg2[] = "hola";
-	const char terminate_msg[] = "bye";
+	const char terminate_msg[] = "exit\n";
 
 	socket_listen(*server);
 
 	// launch client
 	std::stringstream cmd;
-	std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl", "SOCK_STREAM", HOST6, SERVICE, terminate_msg};
+	std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl",
+		"SOCK_STREAM", HOST, SERVICE, terminate_msg};
 	wasl::run_process<wasl::platform_type>("perl", args, false);
 
 	// accept client
@@ -214,12 +217,12 @@ TEST(socket_tcp, CanReceiveAndSendDataFromClient) {
 	char buf[BUFSIZ];
 	char buf2[BUFSIZ];
 	read(client_fd, buf, BUFSIZ);
-	ASSERT_TRUE(strstr(buf, msg));
-	write(client_fd, msg2, sizeof(msg2));
-	read(client_fd, buf2, BUFSIZ);
-	std::cout << "buf:" << buf2 << '\n';
-	ASSERT_TRUE(strstr(buf2, msg2));
+	EXPECT_TRUE(strstr(buf, msg));
+
 	write(client_fd, terminate_msg, sizeof(terminate_msg));
+	read(client_fd, buf2, BUFSIZ);
+	std::cout << "buf:" << buf2;
+	EXPECT_TRUE(strstr(buf2, "exiting"));
 }
 
 TEST(socket_builder_udp, CanBuildUDPSocketWithPortOnly) {
@@ -242,11 +245,12 @@ TEST(socket_builder_udp, CanBuildUDPSocketWithPortAndIPAddress) {
 
 TEST(socket_udp, CanReceiveAndSendDataFromClient) {
 	char send_buf[] = "test message\n";
-	const char terminate_msg[] = "bye";
+	const char terminate_msg[] = "exit";
 
 	auto server { make_socket<AF_INET, SOCK_DGRAM>({SERVICE, HOST}) };
 
-  std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl", "SOCK_DGRAM", HOST, SERVICE, terminate_msg};
+  std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl",
+	  "SOCK_DGRAM", HOST, SERVICE, terminate_msg};
 	wasl::run_process<wasl::platform_type>("perl", args, false);
 
 	char recv_buf[256];
