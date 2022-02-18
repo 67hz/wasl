@@ -40,6 +40,7 @@ using path_type = gsl::czstring<>;
 struct Address_info {
 	path_type service {};
 	path_type host {};
+	bool reuse_addr { true };
 };
 
 template <typename SocketNode> struct socket_builder;
@@ -341,21 +342,23 @@ struct socket_builder_base {
 
 
 	Derived* socket() {
-    asDerived()->sock->sd = ::socket(Derived::family, Derived::socket_type, 0);
+	    asDerived()->sock->sd = ::socket(Derived::family, Derived::socket_type, 0);
 
-    if (!is_valid_socket(asDerived()->sock->sd))
-        asDerived()->sock->sock_err |= SockError::ERR_SOCKET;
+	    if (!is_valid_socket(asDerived()->sock->sd))
+		asDerived()->sock->sock_err |= SockError::ERR_SOCKET;
 
-		int optval {1};
-		if (setsockopt(asDerived()->sock->sd, SOL_SOCKET, SO_REUSEADDR, (const char*)&optval, sizeof(optval)) == -1)
-			asDerived()->sock->sock_err |= SockError::ERR_SOCKET_OPT;
-
-    return asDerived();
+	    return asDerived();
 	}
 
 	Derived* bind(Address_info info) {
 		// TODO create partial specialization or tag dispatch these?
 		auto addr = asDerived()->make_address(info);
+
+		if (info.reuse_addr) {
+			int optval {1};
+			if (setsockopt(asDerived()->sock->sd, SOL_SOCKET, SO_REUSEADDR, (const char*)&optval, sizeof(optval)) == -1)
+				asDerived()->sock->sock_err |= SockError::ERR_SOCKET_OPT;
+		}
 
 		if (::bind(sockno(*(asDerived()->sock)), reinterpret_cast<struct sockaddr *>(addr),
 							 sizeof(typename traits<Derived>::addr_type)) == -1)

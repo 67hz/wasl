@@ -194,15 +194,17 @@ TEST(socket_builder_tcp, CanBuildTCPSocketWithPortAndIPAddress) {
 
 TEST(socket_tcp, CanReceiveAndSendDataFromClient) {
 	// create listening socket
-	auto server { make_socket<AF_INET6, SOCK_STREAM>({.service = SERVICE, .host = HOST6}) };
+	auto server { make_socket<AF_INET6, SOCK_STREAM>({.service = SERVICE, .host = HOST6, .reuse_addr = false}) };
 	socket_listen(*server);
 	char msg[] = "howdy";
 	char msg2[] = "hola";
 	const char terminate_msg[] = "bye";
 
+	socket_listen(*server);
+
 	// launch client
 	std::stringstream cmd;
-  std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl", "SOCK_STREAM", HOST6, SERVICE, terminate_msg};
+	std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl", "SOCK_STREAM", HOST6, SERVICE, terminate_msg};
 	wasl::run_process<wasl::platform_type>("perl", args, false);
 
 	// accept client
