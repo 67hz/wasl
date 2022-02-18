@@ -6,9 +6,10 @@
 
 #include <wasl/Common.h>
 
-#define SRV_PATH "/tmp/wasl/srv"
-#define CL_PATH "/tmp/wasl/cl"
+#define SRV_PATH "/tmp/wasl_srv"
+#define CL_PATH "/tmp/wasl_cl"
 #define HOST "127.0.0.1"
+#define HOST6 "::1"
 #define SERVICE "9877"
 
 #if defined(SYS_API_WIN32)

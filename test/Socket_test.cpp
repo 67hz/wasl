@@ -19,8 +19,6 @@ using namespace wasl::ip;
 using wasl::local::toUType;
 
 constexpr gsl::czstring<> srv_addr{HOST};
-constexpr gsl::czstring<> srv_path{"/tmp/wasl_srv"};
-constexpr gsl::czstring<> client_path{"/tmp/wasl_client"};
 
 using socket_tcp = wasl_socket<AF_INET, SOCK_STREAM>;
 using socket_udp = wasl_socket<AF_INET, SOCK_DGRAM>;
@@ -64,6 +62,9 @@ TEST(socket_state, CanStoreErrorFlags) {
 #ifdef SYS_API_LINUX
 using socket_local_dgram = wasl_socket<AF_UNIX, SOCK_DGRAM>;
 using socket_local_stream = wasl_socket<AF_UNIX, SOCK_STREAM>;
+constexpr gsl::czstring<> srv_path{SRV_PATH};
+constexpr gsl::czstring<> client_path{CL_PATH};
+
 
 static void assert_sock_path_exists(gsl::czstring<> sock_path) {
 	// check existence of path in system
@@ -197,12 +198,12 @@ TEST(socket_builder_tcp, CanBuildTCPSocketWithPortAndIPAddress) {
 TEST(socket_tcp, CanReceiveDataFromClient) {
 	const char msg[] = "abc123\n";
 	// create listening socket
-	auto srvUP { make_socket<AF_INET, SOCK_STREAM>({.service = SERVICE, .host = srv_addr}) };
+	auto srvUP { make_socket<AF_INET6, SOCK_STREAM>({.service = SERVICE, .host = HOST6}) };
 	socket_listen(*srvUP);
 
 	// launch client
 	std::stringstream cmd;
-  std::vector<gsl::czstring<>> args = {"./test/scripts/tcp_client.pl", HOST, SERVICE, msg};
+  std::vector<gsl::czstring<>> args = {"./test/scripts/tcp_client.pl", HOST6, SERVICE, msg};
 	wasl::run_process<wasl::platform_type>("perl", args, false);
 
 	// accept client

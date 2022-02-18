@@ -101,7 +101,7 @@ struct sockaddr_storage get_address (SOCKET sfd)
   return res;
 }
 
-/// create AF_INET, AF_INET6 as  DGRAMS or SOCK_STREAM
+/// create AF_INET, AF_INET6 as DGRAMS or SOCK_STREAM
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 auto create_inet_address(path_type service, path_type host) {
 		struct addrinfo hints;
@@ -113,7 +113,7 @@ auto create_inet_address(path_type service, path_type host) {
 		hints.ai_family = Family;
 		//hints.ai_socktype = SOCK_STREAM;
 		hints.ai_socktype = SocketType;
-		hints.ai_flags = AI_PASSIVE; // for wildcard IP address
+		hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV; // for wildcard IP address
 		//hints.ai_protocol = IPPROTO_TCP;
 		hints.ai_protocol = 0; // TODO allow override
 
@@ -121,6 +121,7 @@ auto create_inet_address(path_type service, path_type host) {
 		rc = getaddrinfo(host, service, &hints, &result);
 		if (rc != 0) {
 			/// \TODO handle error
+			std::cout << "getaddrinfo failed: " << gai_strerror(rc) << '\n';
 		}
 
 #if 0
@@ -230,7 +231,7 @@ public:
 	}
 #endif
 
-	// stream sockets
+	// close socket for everything except unix domain sockets
 	void destroy(...) {
     if (is_valid_socket (sd))
       {

@@ -10,12 +10,12 @@
 
 use strict;
 use warnings;
-use IO::Socket qw(:DEFAULT :crlf);
+use IO::Socket::IP qw(:DEFAULT :crlf);
 
-my $socket = IO::Socket::INET->new (
-	Proto => 'tcp',
-	PeerAddr => shift || '127.0.0.1',
-	PeerPort => shift || '9877'
+my $socket = IO::Socket::IP->new (
+	PeerHost => shift || '127.0.0.1',
+	PeerPort => shift || '9877',
+	Type => SOCK_STREAM,
 ) or die $@;
 
 
