@@ -7,8 +7,6 @@
 using namespace wasl::ip;
 
 
-
-
 TEST(sockstream, CanDeferSocketLoading) {
 	auto sockUP { make_socket<AF_INET6, SOCK_STREAM>({.service = SERVICE, .host = HOST6}) };
 	ASSERT_TRUE(std::is_default_constructible<sockstream>::value);
@@ -25,10 +23,9 @@ TEST(sockstream, IsMoveConstructible) {
 	ASSERT_NE(sockno(*ss2), INVALID_SOCKET);
 }
 
-#if 0
 TEST(sockstream, IsMoveAssignable) {
-	auto sock1 { make_socket<AF_INET, SOCK_DGRAM>({.host = SRV_PATH}) };
-	auto sock2 { make_socket<AF_INET, SOCK_DGRAM>({.host = CL_PATH}) };
+	auto sock1 { make_socket<AF_INET, SOCK_DGRAM>({.host = HOST }) };
+	auto sock2 { make_socket<AF_INET, SOCK_DGRAM>({.host = HOST }) };
   sockstream ss1(sockno(*sock1));
 	auto ss1_fd = sockno(ss1);
 
@@ -39,47 +36,56 @@ TEST(sockstream, IsMoveAssignable) {
 	ASSERT_EQ(sockno(ss2), ss1_fd);
 }
 
-TEST(sockstream_tcp_stream, CanReadData) {
-	auto srv { make_socket<AF_INET, SOCK_STREAM>(SERVICE,HOST) };
+TEST(sockstream_stream, CanSendClientData) {
+	const char msg_from_client[] = "howdy";
+	const char terminate_msg[] = "bye";
+	auto srv { make_socket<AF_INET, SOCK_STREAM>({SERVICE,HOST}) };
+	socket_listen(*srv);
 
-	auto msg_from_client {"abc1234"};
+	auto ss_srv = sdopen(sockno(*srv));
 
 	std::stringstream cmd;
-	cmd << "perl ./test/scripts/tcp_client.pl " << HOST << " " << SERVICE << " '" << msg_from_client << "'";
-	wasl::run_process<wasl::platform_type>(cmd.str().c_str());
+  std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl", "SOCK_STREAM", HOST, SERVICE, msg_from_client, terminate_msg};
+	wasl::run_process<wasl::platform_type>("perl", args, false);
 
 	auto client_fd = socket_accept(srv.get());
 	ASSERT_NE(client_fd, -1);
 //	sockstream ss_cl {client_fd}; // same as below
 	auto ss_cl = sdopen(client_fd);
 
-	std::string res;
-	*ss_cl >> res;
-	ASSERT_STREQ(res.c_str(), msg_from_client);
+	std::string client_buf;
+	*ss_cl >> client_buf;
+	ASSERT_STREQ(client_buf.c_str(), msg_from_client);
+
+	client_buf.clear();
+	char buf[BUFSIZ];
+	*ss_cl << "somemessage" << std::endl;
+//	write(client_fd, msg, sizeof(msg));
+	*ss_cl >> client_buf;
+	read(client_fd, buf, BUFSIZ);
+
+	std::cout << "buf: " << buf << '\n';
+	ASSERT_STREQ(client_buf.c_str(), "somemessage\n");
+	*ss_cl << terminate_msg;
 }
 
 #if 0
-TEST(sockstream_tcp_stream, CanSendClientData) {
-	auto srv { make_socket<AF_INET, SOCK_STREAM>(SERVICE,HOST) };
+TEST(sockstream_datagram, CanReadClientData) {
+	auto srv { make_socket<AF_INET, SOCK_DGRAM>({SERVICE,HOST}) };
+
 	sockstream ss_srv {sockno(*srv)};
 	ASSERT_EQ(sockno(ss_srv), sockno(*srv));
 
-	auto msg {"abc1234"};
-	std::stringstream cmd;
-	cmd << "perl ./test/scripts/tcp_client_receiving.pl " << HOST << " " << SERVICE << " '" << msg << "'";
-	wasl::run_process<wasl::platform_type>(cmd.str().c_str());
-
-	auto client_fd = socket_accept(srv.get());
-	ASSERT_NE(client_fd, -1);
-	sockstream ss_cl {client_fd};
+	const char msg[] = "abc1234";
+  std::vector<gsl::czstring<>> args = {"./test/scripts/udp_client.pl", HOST, SERVICE, msg};
+	wasl::run_process<wasl::platform_type>("perl", args, false);
 
 	std::string res;
 
-	ss_cl >> res;
+	ss_srv >> res;
 	ASSERT_STREQ(res.c_str(), msg);
 
 	// write to client
 //	ss_cl << "can you see me?" << std::endl;
 }
-#endif
 #endif

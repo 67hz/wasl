@@ -15,13 +15,14 @@ use IO::Socket qw(:DEFAULT :crlf);
 use constant MAX_MSG_LEN => 128;
 $/ = CRLF;
 
+my $sock_type = shift || SOCK_DGRAM;
 my $host = shift || '127.0.0.1';
 my $port = shift || '9877';
 my $hangup = shift || "bye";
 my $data = "";
 
-my $socket = IO::Socket::INET->new (
-	Proto => 'udp',
+my $socket = IO::Socket::IP->new (
+	Type => $sock_type,
 	PeerHost => $host,
 	PeerPort => $port) or die $@;
 
