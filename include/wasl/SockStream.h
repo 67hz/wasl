@@ -18,14 +18,13 @@ namespace wasl {
 namespace ip {
 
 template <typename PlatformType> struct basic_sockio {
-  static constexpr int BUFLEN = 128;
-  static constexpr int MAXADDRLEN = 256;
+  static constexpr int BUFLEN = BUFSIZ;
 
-  static ssize_t rv_recv(SOCKET sfd, char *buf, int flags = 0) {
+  static ssize_t rv_recv(SOCKET sfd, char *buf, size_t buf_len, int flags = 0) {
     struct sockaddr_storage peer_addr;
     socklen_t peer_addr_len;
 
-    ssize_t n_read = recvfrom(sfd, buf, BUFLEN, flags, (SOCKADDR *)&peer_addr,
+    ssize_t n_read = recvfrom(sfd, buf, buf_len, flags, (SOCKADDR *)&peer_addr,
                               &peer_addr_len);
 
     // TODO use peer_addr here or return to caller
@@ -47,11 +46,11 @@ class sockbuf : public std::streambuf, private SockIO {
 public:
   /// \param[in] fd file descriptor stream will attach to.
   explicit sockbuf(SOCKET fd) : m_sockFD{fd} { // output
-    setp(m_buffer, m_buffer + (SockIO::BUFLEN - 1));
+    setp(m_out_buffer, m_out_buffer + (SockIO::BUFLEN - 1));
     // input
-    setg(m_buffer + PUTBACK_BUFSZ,  // beginning of putback area
-         m_buffer + PUTBACK_BUFSZ,  // read pos
-         m_buffer + PUTBACK_BUFSZ); // end pos
+    setg(m_in_buffer + PUTBACK_BUFSZ,  // beginning of putback area
+         m_in_buffer + PUTBACK_BUFSZ,  // read pos
+         m_in_buffer + PUTBACK_BUFSZ); // end pos
   }
 
   virtual ~sockbuf() {}
@@ -67,7 +66,7 @@ protected:
   int flushBuffer() {
     auto num = pptr() - pbase();
 
-    if (SockIO::rv_send(m_sockFD, m_buffer, num) != num) {
+    if (SockIO::rv_send(m_sockFD, m_out_buffer, num) != num) {
       return std::char_traits<char>::eof();
     }
     pbump(-num); // reset put pointer
@@ -114,19 +113,19 @@ protected:
     };
 
     // copy into putback buffer
-    memmove(m_buffer + (PUTBACK_BUFSZ - numPutback), gptr() - numPutback,
+    memmove(m_in_buffer + (PUTBACK_BUFSZ - numPutback), gptr() - numPutback,
             numPutback);
 
-    int num = SockIO::rv_recv(m_sockFD, m_buffer + PUTBACK_BUFSZ, 0);
+    int num = SockIO::rv_recv(m_sockFD, m_in_buffer + PUTBACK_BUFSZ, BUFSIZ - PUTBACK_BUFSZ, 0);
 
     if (num <= 0) {
       return std::char_traits<char>::eof();
     }
 
     // reset buffer ptrs
-    setg(m_buffer + (PUTBACK_BUFSZ - numPutback), // start of putback area
-         m_buffer + PUTBACK_BUFSZ,                // read pos
-         m_buffer + PUTBACK_BUFSZ + num);         // buffer end
+    setg(m_in_buffer + PUTBACK_BUFSZ - numPutback, // start of putback area (eback())
+         m_in_buffer + PUTBACK_BUFSZ,                // read pos (gptr())
+         m_in_buffer + PUTBACK_BUFSZ + num);         // buffer end (egptr())
 
     // return next char
     return *gptr();
@@ -134,7 +133,8 @@ protected:
 
 private:
   SOCKET m_sockFD;
-  char_type m_buffer[SockIO::BUFLEN];
+  char_type m_in_buffer[SockIO::BUFLEN];
+  char_type m_out_buffer[SockIO::BUFLEN];
 
   /// number of chars allowed in putback buffer
   constexpr static int PUTBACK_BUFSZ = 4;

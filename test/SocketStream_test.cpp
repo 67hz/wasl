@@ -38,14 +38,15 @@ TEST(sockstream, IsMoveAssignable) {
 
 TEST(sockstream_stream, CanSendClientData) {
 	const char msg_from_client[] = "howdy";
-	const char terminate_msg[] = "bye";
+	const char terminate_msg[] = "exit";
 	auto srv { make_socket<AF_INET, SOCK_STREAM>({SERVICE,HOST}) };
 	socket_listen(*srv);
 
 	auto ss_srv = sdopen(sockno(*srv));
 
 	std::stringstream cmd;
-  std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl", "SOCK_STREAM", HOST, SERVICE, msg_from_client, terminate_msg};
+	std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl",
+		"SOCK_STREAM", HOST, SERVICE, terminate_msg};
 	wasl::run_process<wasl::platform_type>("perl", args, false);
 
 	auto client_fd = socket_accept(srv.get());
@@ -57,16 +58,21 @@ TEST(sockstream_stream, CanSendClientData) {
 	*ss_cl >> client_buf;
 	ASSERT_STREQ(client_buf.c_str(), msg_from_client);
 
-	client_buf.clear();
-	char buf[BUFSIZ];
-	*ss_cl << "somemessage" << std::endl;
-//	write(client_fd, msg, sizeof(msg));
-	*ss_cl >> client_buf;
-	read(client_fd, buf, BUFSIZ);
+	char msg[] = "abcdefg012345678";
 
-	std::cout << "buf: " << buf << '\n';
-	ASSERT_STREQ(client_buf.c_str(), "somemessage\n");
-	*ss_cl << terminate_msg;
+	// send to client
+	*ss_cl << msg << std::endl;
+	// client echoes back so recv echo'd message
+	*ss_cl >> client_buf;
+	ASSERT_STREQ(client_buf.c_str(), msg);
+
+	// send client message to trigger shutdown
+	*ss_cl << terminate_msg << std::endl;
+//	send(client_fd, terminate_msg, sizeof(terminate_msg), 0);
+
+	*ss_cl >> client_buf;
+	std::cout << "client_buf post_terminate: " << client_buf << '\n';
+	ASSERT_STREQ(client_buf.c_str(), "client_close");
 }
 
 #if 0

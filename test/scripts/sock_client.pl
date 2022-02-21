@@ -22,8 +22,6 @@ my $data = "";
 
 my $sock_type_num = $sock_type eq "SOCK_STREAM" ? SOCK_STREAM : SOCK_DGRAM;
 
-chomp($hangup);
-
 my $socket = IO::Socket::IP->new (
 	Type => $sock_type_num,
 	PeerHost => $host,
@@ -31,6 +29,8 @@ my $socket = IO::Socket::IP->new (
 	PeerPort => $port) or die $@;
 
 #$socket->autoflush;
+#
+chomp($hangup);
 
 $socket->send("howdy\n") or die "send() failed: $!\n";
 
@@ -39,11 +39,10 @@ if ($sock_type_num eq SOCK_STREAM) {
   do {
       chomp($line = <$socket>);
       if ($line ne $hangup) {
-        print $socket $line;
+        print $socket "$line\n";
       }
-      chomp($line);
   } until !defined($line) || $line eq $hangup;
-    print $socket "exiting";
+    print $socket "client_close";
 }
 else {
 	do {

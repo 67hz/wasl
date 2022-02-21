@@ -216,14 +216,13 @@ TEST(socket_tcp, CanReceiveAndSendDataFromClient) {
 
 	// read data
 	char buf[BUFSIZ];
-	char buf2[BUFSIZ];
 	recv(client_fd, buf, BUFSIZ, 0);
 	EXPECT_TRUE(strstr(buf, msg));
 
 	send(client_fd, terminate_msg, sizeof(terminate_msg), 0);
-	recv(client_fd, buf2, BUFSIZ, 0);
-	std::cout << "buf:" << buf2;
-	EXPECT_TRUE(strstr(buf2, "exiting"));
+	recv(client_fd, buf, BUFSIZ, 0);
+	std::cout << "buffer is : " << buf << '\n';
+	EXPECT_TRUE(strstr(buf, "client_close"));
 }
 
 TEST(socket_builder_udp, CanBuildUDPSocketWithPortOnly) {
@@ -246,7 +245,7 @@ TEST(socket_builder_udp, CanBuildUDPSocketWithPortAndIPAddress) {
 
 TEST(socket_udp, CanReceiveAndSendDataFromClient) {
 	char send_buf[] = "test message\n";
-	const char terminate_msg[] = "exit";
+	const char terminate_msg[] = "exit\n";
 
 	auto server { make_socket<AF_INET, SOCK_DGRAM>({SERVICE, HOST}) };
 
