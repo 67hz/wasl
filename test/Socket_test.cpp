@@ -212,15 +212,16 @@ TEST(socket_tcp, CanReceiveAndSendDataFromClient) {
 
 	// accept client
 	auto client_fd = socket_accept(server.get());
+  ASSERT_TRUE(is_valid_socket(client_fd));
 
 	// read data
 	char buf[BUFSIZ];
 	char buf2[BUFSIZ];
-	read(client_fd, buf, BUFSIZ);
+	recv(client_fd, buf, BUFSIZ, 0);
 	EXPECT_TRUE(strstr(buf, msg));
 
-	write(client_fd, terminate_msg, sizeof(terminate_msg));
-	read(client_fd, buf2, BUFSIZ);
+	send(client_fd, terminate_msg, sizeof(terminate_msg), 0);
+	recv(client_fd, buf2, BUFSIZ, 0);
 	std::cout << "buf:" << buf2;
 	EXPECT_TRUE(strstr(buf2, "exiting"));
 }
