@@ -71,7 +71,6 @@ TEST(sockstream_stream, CanSendClientData) {
 //	send(client_fd, terminate_msg, sizeof(terminate_msg), 0);
 
 	*ss_cl >> client_buf;
-	std::cout << "client_buf post_terminate: " << client_buf << '\n';
 	ASSERT_STREQ(client_buf.c_str(), "client_close");
 }
 

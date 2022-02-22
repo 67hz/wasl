@@ -83,6 +83,27 @@ add_custom_target(
 # lib tests
 package_add_test_with_libraries(vproxy_test VirtualProxy_test.cpp Wasl::Wasl "${PROJECT_DIR}")
 #package_add_test_with_libraries(iomux_test IOMultiplexer_test.cpp wasl "${PROJECT_DIR}")
-package_add_test_with_libraries(socket_test Socket_test.cpp wasl "${PROJECT_DIR}")
+#package_add_test_with_libraries(socket_test Socket_test.cpp wasl "${PROJECT_DIR}")
 package_add_test_with_libraries(socketstream_test SocketStream_test.cpp wasl "${PROJECT_DIR}")
+
+add_executable(socket_test Socket_test.cpp)
+add_test(NAME socketTest COMMAND socket_test)
+set_tests_properties(socketTest PROPERTIES LABELS "net")
+target_link_libraries(socket_test PRIVATE gtest_main wasl)
+gtest_discover_tests(socket_test)
+
+
+add_executable(start_tcp_server start_server_tcp.cpp)
+add_test(NAME startTCPServer COMMAND start_tcp_server)
+target_link_libraries(start_tcp_server PRIVATE gtest_main wasl)
+
+
+set_tests_properties(startTCPServer		PROPERTIES FIXTURES_SETUP	server)
+set_tests_properties(socketTest PROPERTIES FIXTURES_REQUIRED server)
+#set_tests_properties(stopServer			PROPERTIES FIXTURES_CLEANUP server)
+
+
+
+
+
 

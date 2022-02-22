@@ -172,6 +172,7 @@ TEST(unix_domain_sockets_stream, CanReadAndWrite) {
 
 
 
+#if 0
 TEST(socket_builder_tcp, CanBuildTCPSocketWithPortOnly) {
 	//std::unique_ptr<socket_tcp> sockUP { socket_tcp::
   //  create()->socket()->bind(SERVICE)->build() };
@@ -191,6 +192,7 @@ TEST(socket_builder_tcp, CanBuildTCPSocketWithPortAndIPAddress) {
 
 	ASSERT_TRUE(is_open(*sockUP));
 }
+#endif
 
 TEST(socket_tcp, CanReceiveAndSendDataFromClient) {
 	// create listening socket
