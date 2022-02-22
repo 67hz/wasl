@@ -350,6 +350,16 @@ struct socket_builder_base {
 	    return asDerived();
 	}
 
+	Derived* connect(Address_info info) {
+		auto addr = asDerived()->make_address(info);
+		if (::connect(sockno(*(asDerived()->sock)), reinterpret_cast<struct sockaddr *>(addr), sizeof(typename traits<Derived>::addr_type)) == INVALID_SOCKET) {
+
+//		if (socket_connect( asDerived()->sock, info) == -1) {
+			asDerived()->sock->sock_err |= SockError::ERR_CONNECT;
+		}
+		return asDerived();
+	}
+
 	Derived* bind(Address_info info) {
 		// TODO create partial specialization or tag dispatch these?
 		auto addr = asDerived()->make_address(info);

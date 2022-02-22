@@ -40,6 +40,10 @@ file(TO_NATIVE_PATH ${TEST_SCRIPTS_DIR} testScripts)
 file(GLOB test_helpers CONFIGURE_DEPENDS "${TEST_SCRIPTS_DIR}/*.pl")
 cmake_print_variables(test_helpers)
 
+
+add_executable(echo_server_stream nodes/echo_server_stream.cpp)
+target_link_libraries(echo_server_stream PRIVATE wasl)
+
 macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES TEST_WORKING_DIRECTORY)
   add_executable(${TESTNAME} ${FILES} ${test_helpers})
 
@@ -88,22 +92,21 @@ package_add_test_with_libraries(socketstream_test SocketStream_test.cpp wasl "${
 
 add_executable(socket_test Socket_test.cpp)
 add_test(NAME socketTest COMMAND socket_test)
-set_tests_properties(socketTest PROPERTIES LABELS "net")
+#set_tests_properties(socketTest PROPERTIES LABELS "net")
 target_link_libraries(socket_test PRIVATE gtest_main wasl)
 gtest_discover_tests(socket_test)
 
 
-add_executable(start_tcp_server start_server_tcp.cpp)
-add_test(NAME startTCPServer COMMAND start_tcp_server)
-target_link_libraries(start_tcp_server PRIVATE gtest_main wasl)
+add_executable(start_server_tcp start_server_tcp_test.cpp)
+add_test(NAME startServerTCP COMMAND start_server_tcp)
+target_link_libraries(start_server_tcp PRIVATE gtest_main wasl)
+
+add_executable(stream_client_test stream_client_test.cpp)
+add_test(NAME streamClientTest COMMAND stream_client_test)
+set_tests_properties(streamClientTest PROPERTIES LABELS "net")
+target_link_libraries(stream_client_test PRIVATE gtest_main wasl)
 
 
-set_tests_properties(startTCPServer		PROPERTIES FIXTURES_SETUP	server)
-set_tests_properties(socketTest PROPERTIES FIXTURES_REQUIRED server)
+set_tests_properties(startServerTCP		PROPERTIES FIXTURES_SETUP	server)
+set_tests_properties(streamClientTest PROPERTIES FIXTURES_REQUIRED server)
 #set_tests_properties(stopServer			PROPERTIES FIXTURES_CLEANUP server)
-
-
-
-
-
-

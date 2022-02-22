@@ -207,7 +207,6 @@ TEST(socket_tcp, CanReceiveAndSendDataFromClient) {
 	socket_listen(*server);
 
 	// launch client
-	std::stringstream cmd;
 	std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl",
 		"SOCK_STREAM", HOST, SERVICE, terminate_msg};
 	wasl::run_process<wasl::platform_type>("perl", args, false);

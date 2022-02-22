@@ -182,7 +182,7 @@ auto run_process(const char* command, std::vector<gsl::czstring<>> args, bool wa
     // close thread handle
     ::CloseHandle(pi.hThread);
 		if (wait_child) {
-			::WaitForSingleObject(pi.hProcess, INFINITE); 
+			::WaitForSingleObject(pi.hProcess, INFINITE);
     }
 
     // Close process handle
