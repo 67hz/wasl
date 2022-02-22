@@ -81,9 +81,9 @@ auto fork_and_wait(F f, Types&&... args) {
       FAIL() << "fork";
     }
 
-    if (cpid == 0) { // child context
+    if (cpid == 0) { // grand child context
       fork_and_wait(std::forward<Types>(args)...);
-    } else { // parent context
+    } else { // child context
       f();
       ASSERT_EQ(0, wait_for_child_fork(cpid));
       exit(testing::Test::HasFailure());
@@ -127,7 +127,6 @@ auto run_process(const char* command, std::vector<gsl::czstring<>> args, bool wa
 	else { // parent context
 		if (wait_child) {
       ASSERT_EQ(0, wait_for_child_fork(cpid));
-      exit(testing::Test::HasFailure());
 		}
 	}
 }

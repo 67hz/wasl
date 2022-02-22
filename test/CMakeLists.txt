@@ -92,7 +92,6 @@ package_add_test_with_libraries(socketstream_test SocketStream_test.cpp wasl "${
 
 add_executable(socket_test Socket_test.cpp)
 add_test(NAME socketTest COMMAND socket_test)
-#set_tests_properties(socketTest PROPERTIES LABELS "net")
 target_link_libraries(socket_test PRIVATE gtest_main wasl)
 gtest_discover_tests(socket_test)
 

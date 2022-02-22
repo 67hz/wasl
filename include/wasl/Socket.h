@@ -352,9 +352,11 @@ struct socket_builder_base {
 
 	Derived* connect(Address_info info) {
 		auto addr = asDerived()->make_address(info);
+		std::cout << "fd: " << sockno(*(asDerived()->sock)) << '\n';
 		if (::connect(sockno(*(asDerived()->sock)), reinterpret_cast<struct sockaddr *>(addr), sizeof(typename traits<Derived>::addr_type)) == INVALID_SOCKET) {
 
 //		if (socket_connect( asDerived()->sock, info) == -1) {
+			std::cout << "connect error: " << strerror(errno) << '\n';
 			asDerived()->sock->sock_err |= SockError::ERR_CONNECT;
 		}
 		return asDerived();

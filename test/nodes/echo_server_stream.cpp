@@ -14,8 +14,11 @@ int main() {
 
 	char buf[BUFSIZ];
 
-	std::cout << "server is running..." << '\n';
+	FILE *journal = fopen("my_test.log", "w");
+
+	fprintf(journal, "server running\n");
 	auto client_fd = socket_accept(server.get());
+
 	// open a IO socketstream
 	auto client_ss = sdopen(client_fd);
 
@@ -23,6 +26,7 @@ int main() {
 
 		// read from clients
 		*client_ss >> buf;
+		fprintf(journal, "received from %d: %s\n", client_fd, buf);
 
 		// echo back
 		*client_ss << "from server: " << buf << std::endl;
