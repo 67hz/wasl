@@ -5,10 +5,14 @@
 
 using namespace wasl::ip;
 
-int main() {
+int main(int argc, char *argv[]) {
+
+	if (argc < 3)
+		exit(EXIT_FAILURE);
+
 	auto server { make_socket<AF_INET, SOCK_STREAM>({
-							.service = SERVICE,
-							.host = HOST,
+							.service = argv[2],
+							.host = argv[1],
 							.reuse_addr = true}) };
 	socket_listen(*server);
 
@@ -29,7 +33,7 @@ int main() {
 		fprintf(journal, "received from %d: %s\n", client_fd, buf);
 
 		// echo back
-		*client_ss << "from server: " << buf << std::endl;
+		*client_ss << "from_server:" << buf << std::endl;
 	}
 
 	return 0;

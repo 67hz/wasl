@@ -2,8 +2,6 @@
 #include <thread>
 #include <gsl/string_span> // czstring
 
-#include <gtest/gtest.h>
-
 #include <wasl/Common.h>
 
 #define SRV_PATH "/tmp/wasl_srv"
@@ -33,8 +31,6 @@ public:
   ~thread_guard() {
     if (t.joinable())
       t.join();
-
-    exit(testing::Test::HasFailure());
   }
   thread_guard(thread_guard const &) = delete;
   thread_guard &operator=(thread_guard const &) = delete;
@@ -42,7 +38,7 @@ public:
 
 #ifdef SYS_API_LINUX
 
-static int wait_for_child_fork(int pid) {
+static int wait_for_pid_fork(int pid) {
   int status;
   if (waitpid(pid, &status, 0) < 0)
     return -1;
@@ -56,16 +52,18 @@ template <typename F1, typename F2> auto fork_and_wait(F1&& f1, F2&& f2) {
   pid_t cpid;
   cpid = fork();
   if (cpid == -1) {
-    FAIL() << "fork";
+		return -1;
   }
 
   if (cpid == 0) { // child context
     f2();
-    exit(testing::Test::HasFailure());
+    exit(EXIT_SUCCESS);
   } else { // parent context (original callee context)
     f1();
-    ASSERT_EQ(0, wait_for_child_fork(cpid));
-//    exit(testing::Test::HasFailure());
+		if (wait_for_pid_fork(cpid) == 0)
+			exit(EXIT_SUCCESS);
+		else
+			exit(EXIT_FAILURE);
   }
 }
 
@@ -78,15 +76,17 @@ auto fork_and_wait(F f, Types&&... args) {
     pid_t cpid;
     cpid = fork();
     if (cpid == -1) {
-      FAIL() << "fork";
+			return -1;
     }
 
     if (cpid == 0) { // grand child context
       fork_and_wait(std::forward<Types>(args)...);
     } else { // child context
       f();
-      ASSERT_EQ(0, wait_for_child_fork(cpid));
-      exit(testing::Test::HasFailure());
+			if (wait_for_pid_fork(cpid) == 0)
+				exit(EXIT_SUCCESS);
+			else
+				exit(EXIT_FAILURE);
     }
   };
 
@@ -95,7 +95,7 @@ auto fork_and_wait(F f, Types&&... args) {
 
 template <typename P,
 				 EnableIfSamePlatform<P, posix> = true>
-auto run_process(const char* command, std::vector<gsl::czstring<>> args, bool wait_child = false) {
+int run_process(const char* command, std::vector<gsl::czstring<>> args, bool wait_child = false) {
 	/*
 	if (WIFSIGNALED(ret) &&
 			(WTERMSIG(ret) == SIGINT || WTERMSIG(ret) == SIGQUIT))
@@ -113,20 +113,25 @@ auto run_process(const char* command, std::vector<gsl::czstring<>> args, bool wa
 
 	pid_t cpid = fork();
 	if (cpid == -1) {
-    FAIL() << "fork";
+		return -1;
 	}
 
 	if (cpid == 0) { // child context
 		int ret = execvp(command, arg_arr);
 
 		if (ret == -1)
-			FAIL() << strerror(errno);
-
-    exit(testing::Test::HasFailure());
+			return -1;
+		else
+			return 0;
 	}
 	else { // parent context
 		if (wait_child) {
-      ASSERT_EQ(0, wait_for_child_fork(cpid));
+			if (wait_for_pid_fork(cpid) == 0)
+				exit(EXIT_SUCCESS);
+			else
+				exit(EXIT_FAILURE);
+		} else {
+			exit(EXIT_SUCCESS);
 		}
 	}
 }
