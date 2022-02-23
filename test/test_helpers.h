@@ -16,6 +16,8 @@
 
 #elif defined(SYS_API_LINUX)
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #endif
 
@@ -111,29 +113,53 @@ int run_process(const char* command, std::vector<gsl::czstring<>> args, bool wai
 		arg_arr[i] = const_cast<char*>(args[i-1]);
 	}
 
-	pid_t cpid = fork();
-	if (cpid == -1) {
-		return -1;
-	}
-
-	if (cpid == 0) { // child context
-		int ret = execvp(command, arg_arr);
-
-		if (ret == -1)
+	switch(pid_t cpid = fork()) {
+		case -1:
 			return -1;
-		else
-			return 0;
-	}
-	else { // parent context
-		if (wait_child) {
-			if (wait_for_pid_fork(cpid) == 0)
-				exit(EXIT_SUCCESS);
-			else
-				exit(EXIT_FAILURE);
-		} else {
-			exit(EXIT_SUCCESS);
+		case 0: // child context
+			std::cout << "child cpid: " << cpid << '\n';
+			break;
+		default: {
+			std::cout << "parent cpid: " << cpid << '\n';
+			if (wait_child) {
+				if (wait_for_pid_fork(cpid) == 0)
+					_exit(EXIT_SUCCESS);
+				else
+					_exit(EXIT_FAILURE);
+			} else {
+				_exit(EXIT_SUCCESS);
+			}
+					 }
 		}
+
+	if (setsid() == -1)
+		return -1;
+
+	// forking from child guarantees this process (grandchild) is a session leader
+	switch(fork()) {
+		case -1:
+			return -1;
+		case 0: break;
+		default: _exit(EXIT_SUCCESS);
 	}
+
+	close(STDIN_FILENO);
+	auto fd = open("/dev/null", O_RDWR);
+	if (fd != STDIN_FILENO)
+		return -1;
+	if (dup2(STDIN_FILENO, STDOUT_FILENO) != STDOUT_FILENO)
+		return -1;
+	if (dup2(STDIN_FILENO, STDERR_FILENO) != STDERR_FILENO)
+		return -1;
+
+
+	int ret = execvp(command, arg_arr);
+
+	if (ret == -1)
+		return -1;
+	else
+		return 0;
+
 }
 
 #endif // SYS_API_LINUX
