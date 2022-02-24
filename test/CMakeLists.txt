@@ -32,12 +32,11 @@ cmake_print_variables(googletest_BINARY_DIR)
 cmake_print_variables(googletest_SOURCE_DIR)
 
 include(GoogleTest)
-include(CTest)
-enable_testing()
+#include(CTest)
+#enable_testing()
 
 set(TEST_SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
 file(TO_NATIVE_PATH ${TEST_SCRIPTS_DIR} testScripts)
-file(GLOB test_helpers CONFIGURE_DEPENDS "${TEST_SCRIPTS_DIR}/*.pl")
 cmake_print_variables(test_helpers)
 
 
@@ -45,7 +44,9 @@ add_executable(echo_server_stream nodes/echo_server_stream.cpp)
 target_link_libraries(echo_server_stream PRIVATE wasl)
 
 macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES TEST_WORKING_DIRECTORY)
-  add_executable(${TESTNAME} ${FILES} ${test_helpers})
+  add_executable(${TESTNAME} ${FILES}
+		${TEST_SCRIPTS_DIR}/sock_client.pl # TODO use findperl module
+		)
 
   add_custom_command(
     TARGET ${TESTNAME}

@@ -143,15 +143,21 @@ int run_process(const char* command, std::vector<gsl::czstring<>> args, bool wai
 		default: _exit(EXIT_SUCCESS);
 	}
 
+	// In order to run as a true daemon,
+	// file descriptors are closed and piped to /dev/null. This prevents
+	// the daemon from potentially blocking the callee.
+
+	// close stdin down to make its fd next available
 	close(STDIN_FILENO);
+
 	auto fd = open("/dev/null", O_RDWR);
+
 	if (fd != STDIN_FILENO)
 		return -1;
 	if (dup2(STDIN_FILENO, STDOUT_FILENO) != STDOUT_FILENO)
 		return -1;
 	if (dup2(STDIN_FILENO, STDERR_FILENO) != STDERR_FILENO)
 		return -1;
-
 
 	int ret = execvp(command, arg_arr);
 

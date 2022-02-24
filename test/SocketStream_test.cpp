@@ -36,6 +36,8 @@ TEST(sockstream, IsMoveAssignable) {
 	ASSERT_EQ(sockno(ss2), ss1_fd);
 }
 
+#if 0
+
 TEST(sockstream_stream, CanSendClientData) {
 	const char msg_from_client[] = "howdy";
 	const char terminate_msg[] = "exit";
@@ -74,7 +76,6 @@ TEST(sockstream_stream, CanSendClientData) {
 	ASSERT_STREQ(client_buf.c_str(), "client_close");
 }
 
-#if 0
 TEST(sockstream_datagram, CanReadClientData) {
 	auto srv { make_socket<AF_INET, SOCK_DGRAM>({SERVICE,HOST}) };
 

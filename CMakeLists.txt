@@ -28,12 +28,13 @@ set(path_to_headers
 	"${CMAKE_CURRENT_LIST_DIR}/include"
 )
 
-file(GLOB wasl_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp")
-file(GLOB wasl_headers CONFIGURE_DEPENDS "${path_to_headers}/wasl/*.h")
-
+set(wasl_sources
+	"${CMAKE_CURRENT_LIST_DIR}/src/IOMultiplexer.cpp"
+	"${CMAKE_CURRENT_LIST_DIR}/src/Socket.cpp"
+	)
 
 cmake_print_variables(wasl_sources)
-cmake_print_variables(wasl_headers)
+
 
 add_library(wasl ${wasl_sources})
 add_library(Wasl::Wasl ALIAS wasl)
@@ -108,19 +109,24 @@ export(EXPORT wasl-targets
 export(PACKAGE Wasl)
 
 option(BUILD_TESTING "Build unit tests" ON)
-if (BUILD_TESTING)
+if (BUILD_TESTING AND ${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
   enable_testing()
+	include(CTest)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
 endif()
 
-# todo use generate $<IF:CONFIG
-if (CMAKE_BUILD_TYPE MATCHES "^[Dd]ebug")
+file(GLOB wasl_headers CONFIGURE_DEPENDS "${path_to_headers}/wasl/*.h")
+cmake_print_variables(wasl_headers)
+
+
+if (CMAKE_BUILD_TYPE MATCHES "^[Dd]ebug" AND 0) # temp disabled
 	find_program(CLANG_TIDY "clang-tidy")
+
 	if (CLANG_TIDY)
 	add_custom_target(
 			clang-tidy ALL
 			COMMAND ${CMAKE_CXX_CLANG_TIDY}
-			${wasl_sources}
+			#	${wasl_sources}
 			${wasl_headers}
 		)
 	endif()

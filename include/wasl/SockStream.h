@@ -116,16 +116,18 @@ protected:
     memmove(m_in_buffer + (PUTBACK_BUFSZ - numPutback), gptr() - numPutback,
             numPutback);
 
-    int num = SockIO::rv_recv(m_sockFD, m_in_buffer + PUTBACK_BUFSZ, BUFSIZ - PUTBACK_BUFSZ, 0);
+    int num = SockIO::rv_recv(m_sockFD, m_in_buffer + PUTBACK_BUFSZ,
+                              BUFSIZ - PUTBACK_BUFSZ, 0);
 
     if (num <= 0) {
       return std::char_traits<char>::eof();
     }
 
     // reset buffer ptrs
-    setg(m_in_buffer + PUTBACK_BUFSZ - numPutback, // start of putback area (eback())
-         m_in_buffer + PUTBACK_BUFSZ,                // read pos (gptr())
-         m_in_buffer + PUTBACK_BUFSZ + num);         // buffer end (egptr())
+    setg(m_in_buffer + PUTBACK_BUFSZ -
+             numPutback,                     // start of putback area (eback())
+         m_in_buffer + PUTBACK_BUFSZ,        // read pos (gptr())
+         m_in_buffer + PUTBACK_BUFSZ + num); // buffer end (egptr())
 
     // return next char
     return *gptr();
@@ -173,14 +175,14 @@ public:
     return *this;
   }
 
-	/// Get a sockstream's underlying socket descriptor
-	/// \see fileno()
+  /// Get a sockstream's underlying socket descriptor
+  /// \see fileno()
   inline friend SOCKET sockno(const sockstream &sock) {
-		if (sock)
-			return sock._sd();
-		else
-			return INVALID_SOCKET;
-	}
+    if (sock)
+      return sock._sd();
+    else
+      return INVALID_SOCKET;
+  }
 
   buf_type *rdbuf() const { return m_sockbuf.get(); }
 
@@ -192,7 +194,7 @@ public:
 
     m_sockbuf.load(sockfd);
     this->init(rdbuf());
-		return 0;
+    return 0;
   }
 
 private:
@@ -202,7 +204,6 @@ private:
   // non-default-constructable sockbuf until a valid SOCKET is opened.
   vproxy_ptr<buf_type> m_sockbuf;
 };
-
 
 /// Open sockstream given a SOCKET descriptor.
 /// \see fdopen()

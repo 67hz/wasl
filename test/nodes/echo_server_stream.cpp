@@ -21,9 +21,8 @@ int main(int argc, char *argv[])
     char buf[BUFSIZ];
 
 		std::fstream journal("my_test.log"s, journal.binary | journal.trunc | journal.out);
-
 		journal << "server running\n";
-//    fprintf(journal, "server running\n");
+
     auto client_fd = socket_accept(server.get());
 
     // open a IO socketstream

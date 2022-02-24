@@ -8,8 +8,8 @@
 #include <iterator>
 #include <map>
 #include <set>
-#include <vector>
 #include <string>
+#include <vector>
 
 #ifdef SYS_API_LINUX
 #include <sys/epoll.h>
@@ -80,13 +80,13 @@ private:
   event_map<T, std::string> _event_handlers;
 };
 
-template <typename T, typename P, typename Enable = void> struct epoll_muxer {
-};
+template <typename T, typename P, typename Enable = void> struct epoll_muxer {};
 
 /// epoll() based event muxer
 /// TODO check for >2.6 linux, and fix enableif switch
 /// \note all static members for EBCO
-template <typename T, typename P> struct epoll_muxer <T, P, EnableIfSamePlatform<P, posix>> {
+template <typename T, typename P>
+struct epoll_muxer<T, P, EnableIfSamePlatform<P, posix>> {
   using event_type = epoll_event;
   static constexpr int event_max = 10; // max events to fetch at a time
   using event_list = std::vector<T>;
@@ -131,7 +131,8 @@ template <typename T, typename P> struct epoll_muxer <T, P, EnableIfSamePlatform
   }
 };
 
-template <typename T, class Muxer = epoll_muxer<T, platform_type>> auto make_muxer() {
+template <typename T, class Muxer = epoll_muxer<T, platform_type>>
+auto make_muxer() {
   return std::make_unique<io_mux_base<T, Muxer>>();
 }
 

@@ -21,24 +21,24 @@
 #define END_C_DECLS
 #endif /* !__cplusplus */
 
-#define WASL_NO_COPY(class_name)                                             \
+#define WASL_NO_COPY(class_name)                                               \
   class_name(const class_name &) = delete;                                     \
   class_name &operator=(const class_name &) = delete;
 
 // enable logical ops on an enum. CWCID - lldb-enumerations.h
-#define WASL_MARK_AS_BITMASK_ENUM(Enum)                                      \
+#define WASL_MARK_AS_BITMASK_ENUM(Enum)                                        \
   constexpr Enum operator|(Enum a, Enum b) {                                   \
-    return static_cast<Enum>(wasl::local::toUType(a) |                       \
-                             wasl::local::toUType(b));                       \
+    return static_cast<Enum>(wasl::local::toUType(a) |                         \
+                             wasl::local::toUType(b));                         \
   }                                                                            \
                                                                                \
   constexpr Enum operator&(Enum a, Enum b) {                                   \
-    return static_cast<Enum>(wasl::local::toUType(a) &                       \
-                             wasl::local::toUType(b));                       \
+    return static_cast<Enum>(wasl::local::toUType(a) &                         \
+                             wasl::local::toUType(b));                         \
   }                                                                            \
                                                                                \
   constexpr Enum operator~(Enum a) {                                           \
-    return ~static_cast<Enum>(wasl::local::toUType(a));                      \
+    return ~static_cast<Enum>(wasl::local::toUType(a));                        \
   }                                                                            \
                                                                                \
   constexpr Enum &operator|=(Enum &a, Enum b) {                                \
@@ -67,14 +67,12 @@ using EnableIfSocketType = std::enable_if_t<is_socket<T>::value, V>;
 template <typename T>
 struct is_inet_socket
     : std::integral_constant<bool,
-                                 std::is_same<T, struct sockaddr_in>::value ||
+                             std::is_same<T, struct sockaddr_in>::value ||
                                  std::is_same<T, struct sockaddr_in6>::value> {
 };
 
 template <typename T, typename V = bool>
 using EnableIfInetSocketType = std::enable_if_t<is_inet_socket<T>::value, V>;
-
-
 
 #ifndef _WIN32 /* Posix */
 
@@ -104,7 +102,7 @@ public:
 };
 
 namespace local {
-		/// Get underlying type from enum - see Modern Meyers p72
+/// Get underlying type from enum - see Modern Meyers p72
 template <typename Enum> constexpr auto toUType(Enum enumerator) noexcept {
   return static_cast<std::underlying_type_t<Enum>>(enumerator);
 }
@@ -119,7 +117,7 @@ enum class SockError : uint32_t {
   ERR_CONNECT = 0x4,
   ERR_LISTEN = 0x8,
   ERR_PATH_INVAL = 0x10,
-	ERR_SOCKET_OPT = 0x20
+  ERR_SOCKET_OPT = 0x20
 };
 WASL_MARK_AS_BITMASK_ENUM(SockError);
 } // namespace ip

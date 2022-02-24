@@ -27,8 +27,7 @@ TEST(socket_utils, GetAddressFromSocketDescriptor) {
 	auto addr = get_address(sockno(*sock));
 	in_addr ip;
 	auto res = inet_pton(AF_INET, HOST, &ip);
-	auto SA = address(*sock);
-	ASSERT_EQ(ip.s_addr, SA->sin_addr.s_addr);
+	auto SA = as_address(*sock);
 	ASSERT_EQ(ip.s_addr, SA->sin_addr.s_addr);
 	auto res_sockaddr = reinterpret_cast<struct sockaddr_in*>(&addr);
 	ASSERT_EQ(res_sockaddr->sin_port, SA->sin_port);
@@ -132,7 +131,7 @@ TEST(unix_domain_sockets_datagram, CanReadAndWrite) {
 	}, [msg, srv = *srvUP]() {
 		// child sends
 		auto client_sock { make_socket<AF_LOCAL, SOCK_DGRAM>({.host= client_path}) };
-		std::unique_ptr<struct sockaddr_un> srv_addr {address(srv)};
+		std::unique_ptr<struct sockaddr_un> srv_addr {as_address(srv)};
 		if (sendto(sockno(*client_sock), msg, sizeof(msg), 0, (struct sockaddr *)(srv_addr.get()), sizeof(struct sockaddr_un)) == -1)
 			std::cerr << strerror(errno) << '\n';
 	});
