@@ -23,7 +23,7 @@ using socket_udp = wasl_socket<AF_INET, SOCK_DGRAM>;
 
 TEST(socket_utils, GetAddressFromSocketDescriptor) {
 	std::unique_ptr<socket_tcp> sock { socket_tcp::
-		create()->socket()->bind({SERVICE, HOST})->build() };
+		create()->socket()->bind({HOST, SERVICE})->build() };
 	auto addr = get_address(sockno(*sock));
 	in_addr ip;
 	auto res = inet_pton(AF_INET, HOST, &ip);
@@ -196,9 +196,10 @@ TEST(socket_builder_tcp, CanBuildTCPSocketWithPortAndIPAddress) {
 TEST(socket_tcp, CanReceiveAndSendDataFromClient) {
 	// create listening socket
 	auto server { make_socket<AF_INET, SOCK_STREAM>({
-							.service = SERVICE,
-							.host = HOST,
-							.reuse_addr = true}) };
+							HOST, // host
+							SERVICE, // service
+							true // reuse_addr
+							}) };
 	socket_listen(*server);
 	char msg[] = "howdy";
 	const char terminate_msg[] = "exit\n";
@@ -236,7 +237,7 @@ TEST(socket_builder_udp, CanBuildUDPSocketWithPortOnly) {
 
 TEST(socket_builder_udp, CanBuildUDPSocketWithPortAndIPAddress) {
 	std::unique_ptr<socket_udp> sockUP { socket_udp::
-    create()->socket()->bind({.service =  SERVICE, .host = HOST})->build() };
+    create()->socket()->bind({HOST, SERVICE})->build() };
 
 	socket_listen(*sockUP);
 
@@ -247,7 +248,7 @@ TEST(socket_udp, CanReceiveAndSendDataFromClient) {
 	char send_buf[] = "test message\n";
 	const char terminate_msg[] = "exit\n";
 
-	auto server { make_socket<AF_INET, SOCK_DGRAM>({SERVICE, HOST}) };
+	auto server { make_socket<AF_INET, SOCK_DGRAM>({HOST, SERVICE}) };
 
   std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl",
 	  "SOCK_DGRAM", HOST, SERVICE, terminate_msg};

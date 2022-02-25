@@ -15,7 +15,13 @@ int main(int argc, char *argv[])
     if (argc < 3)
         exit(EXIT_FAILURE);
 
-    auto server{make_socket<AF_INET, SOCK_STREAM>({.service = argv[2], .host = argv[1], .reuse_addr = true})};
+		Address_info serverAddrInfo;
+		serverAddrInfo.host = argv[1];
+  	serverAddrInfo.service = argv[2];
+		serverAddrInfo.reuse_addr = true;
+
+    auto server{make_socket<AF_INET, SOCK_STREAM>(serverAddrInfo)};
+
     socket_listen(*server);
 
     char buf[BUFSIZ];

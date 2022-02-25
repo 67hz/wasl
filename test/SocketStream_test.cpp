@@ -8,7 +8,7 @@ using namespace wasl::ip;
 
 
 TEST(sockstream, CanDeferSocketLoading) {
-	auto sockUP { make_socket<AF_INET6, SOCK_STREAM>({.service = SERVICE, .host = HOST6}) };
+	auto sockUP { make_socket<AF_INET6, SOCK_STREAM>({HOST6, SERVICE}) };
 	ASSERT_TRUE(std::is_default_constructible<sockstream>::value);
 	sockstream lazy_ss;
 	lazy_ss.set_handle(sockno(*sockUP));
@@ -16,7 +16,7 @@ TEST(sockstream, CanDeferSocketLoading) {
 }
 
 TEST(sockstream, IsMoveConstructible) {
-	auto sockUP { make_socket<AF_UNIX, SOCK_STREAM>({.host = SRV_PATH}) };
+	auto sockUP { make_socket<AF_UNIX, SOCK_STREAM>({SRV_PATH}) };
 	std::unique_ptr<sockstream>ss1 = sdopen(sockno(*sockUP));
 	auto ss2 {std::move(ss1)};
 	ASSERT_TRUE(ss2);
@@ -24,8 +24,8 @@ TEST(sockstream, IsMoveConstructible) {
 }
 
 TEST(sockstream, IsMoveAssignable) {
-	auto sock1 { make_socket<AF_INET, SOCK_DGRAM>({.host = HOST }) };
-	auto sock2 { make_socket<AF_INET, SOCK_DGRAM>({.host = HOST }) };
+	auto sock1 { make_socket<AF_INET, SOCK_DGRAM>({HOST}) };
+	auto sock2 { make_socket<AF_INET, SOCK_DGRAM>({HOST}) };
   sockstream ss1(sockno(*sock1));
 	auto ss1_fd = sockno(ss1);
 

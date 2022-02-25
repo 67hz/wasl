@@ -36,8 +36,8 @@ namespace ip {
 using path_type = gsl::czstring<>;
 
 struct Address_info {
-  path_type service{};
   path_type host{};
+  path_type service{};
   bool reuse_addr{true};
 };
 
@@ -97,7 +97,7 @@ struct sockaddr_storage get_address(SOCKET sfd) {
 
 /// create AF_INET, AF_INET6 as DGRAMS or SOCK_STREAM
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-auto create_inet_address(path_type service, path_type host) {
+auto create_inet_address(Address_info info) {
   struct addrinfo hints;
   struct addrinfo *result;
   int rc;
@@ -111,7 +111,7 @@ auto create_inet_address(path_type service, path_type host) {
   // hints.ai_protocol = IPPROTO_TCP;
   hints.ai_protocol = 0; // TODO allow override
 
-  rc = getaddrinfo(host, service, &hints, &result);
+  rc = getaddrinfo(info.host, info.service, &hints, &result);
   if (rc != 0) {
     /// \TODO handle error
     std::cout << "getaddrinfo failed: " << gai_strerror(rc) << '\n';
@@ -130,31 +130,31 @@ auto create_inet_address(path_type service, path_type host) {
 
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 typename traits::addr_type *
-create_address(path_type service, path_type host,
+create_address(Address_info info,
                std::integral_constant<int, AF_INET>) {
-  return create_inet_address<Family, SocketType>(service, host);
+  return create_inet_address<Family, SocketType>(info);
 }
 
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 typename traits::addr_type *
-create_address(path_type service, path_type host,
+create_address(Address_info info,
                std::integral_constant<int, AF_INET6>) {
-  return create_inet_address<Family, SocketType>(service, host);
+  return create_inet_address<Family, SocketType>(info);
 }
 
 #ifdef SYS_API_LINUX
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 typename traits::addr_type *
-create_address(path_type service, path_type host,
+create_address(Address_info info,
                std::integral_constant<int, AF_UNIX>) {
   struct sockaddr_un *addr = new sockaddr_un;
   addr->sun_family = AF_UNIX;
-  assert((strlen(host) < sizeof(addr->sun_path) - 1));
+  assert((strlen(info.host) < sizeof(addr->sun_path) - 1));
 
   // remove path in case artifacts were left from a previous run
-  unlink(host);
+  unlink(info.host);
 
-  strncpy(addr->sun_path, host, sizeof(addr->sun_path) - 1);
+  strncpy(addr->sun_path, info.host, sizeof(addr->sun_path) - 1);
   return addr;
 }
 #endif
@@ -374,7 +374,7 @@ struct socket_builder : public socket_builder_base<socket_builder<SocketNode>> {
 
   auto make_address(Address_info info) {
     auto addr = create_address<family, socket_type>(
-        info.service, info.host, std::integral_constant<int, traits::value>());
+        info, std::integral_constant<int, traits::value>());
     return addr;
   }
 

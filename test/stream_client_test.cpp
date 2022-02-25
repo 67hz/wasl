@@ -12,7 +12,7 @@ TEST(socket_client_tcp, CanReceiveAndSendDataFromServer) {
 		auto client {
 			wasl_socket<AF_INET, SOCK_STREAM>::create()
 				->socket ()
-				->connect ({SERVICE, HOST})
+				->connect ({HOST, SERVICE})
 				->build()
 		};
 
