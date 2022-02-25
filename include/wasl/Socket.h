@@ -36,8 +36,8 @@ namespace ip {
 using path_type = gsl::czstring<>;
 
 struct Address_info {
-  path_type host{};
-  path_type service{};
+  path_type host{ nullptr };
+  path_type service{ nullptr };
   bool reuse_addr{true};
 };
 

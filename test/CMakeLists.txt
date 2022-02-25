@@ -89,17 +89,21 @@ add_custom_target(
 package_add_test_with_libraries(vproxy_test VirtualProxy_test.cpp Wasl::Wasl "${PROJECT_DIR}")
 #package_add_test_with_libraries(iomux_test IOMultiplexer_test.cpp wasl "${PROJECT_DIR}")
 #package_add_test_with_libraries(socket_test Socket_test.cpp wasl "${PROJECT_DIR}")
-package_add_test_with_libraries(socketstream_test SocketStream_test.cpp wasl "${PROJECT_DIR}")
+#package_add_test_with_libraries(socketstream_test SocketStream_test.cpp wasl "${PROJECT_DIR}")
+
+add_executable(socketstream_test SocketStream_test.cpp)
+add_test(NAME sockstreamTest COMMAND socketstream_test)
+target_link_libraries(socketstream_test PRIVATE gtest_main wasl)
+gtest_discover_tests(socketstream_test)
 
 add_executable(socket_test Socket_test.cpp)
 add_test(NAME socketTest COMMAND socket_test)
 target_link_libraries(socket_test PRIVATE gtest_main wasl)
 gtest_discover_tests(socket_test)
 
-
 add_executable(startServerTCP start_server_tcp_test.cpp)
 target_link_libraries(startServerTCP PRIVATE wasl)
-add_test(NAME initServerTCP COMMAND startServerTCP)
+add_test(NAME initServerTCP COMMAND startServerTCP 127.0.0.1 9877)
 
 add_executable(stream_client_test stream_client_test.cpp)
 add_test(NAME streamClientTest COMMAND stream_client_test)
