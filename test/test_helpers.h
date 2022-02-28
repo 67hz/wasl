@@ -106,7 +106,7 @@ int run_process(const char* command, std::vector<gsl::czstring<>> args, bool wai
 
 	char* arg_arr[args.size() + 1]; // allow extra index for tail nullptr
 	// execvp* requires nullptr terminated
-	arg_arr[0] = const_cast<char*>(command); // posix takes command as first args arg by convention
+	arg_arr[0] = const_cast<char*>(command); // posix takes command as first arg by convention
 	arg_arr[args.size()+1] = nullptr;
 
 	for (auto i {1}; i < args.size()+1; ++i) {

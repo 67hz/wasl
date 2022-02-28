@@ -101,7 +101,7 @@ add_test(NAME socketTest COMMAND socket_test)
 target_link_libraries(socket_test PRIVATE gtest_main wasl)
 gtest_discover_tests(socket_test)
 
-add_executable(startServerTCP start_server_tcp_test.cpp)
+add_executable(startServerTCP start_server_test.cpp)
 target_link_libraries(startServerTCP PRIVATE wasl)
 add_test(NAME initServerTCP COMMAND startServerTCP 127.0.0.1 9877)
 
