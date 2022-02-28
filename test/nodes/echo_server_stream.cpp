@@ -19,9 +19,7 @@ int main(int argc, char *argv[])
 	serverAddrInfo.service = argv[2];
 	serverAddrInfo.reuse_addr = true;
 
-	auto server{make_socket<AF_INET, SOCK_STREAM>(serverAddrInfo)};
-
-	socket_listen(*server);
+	auto server{make_socket_listener<AF_INET, SOCK_STREAM>(serverAddrInfo)};
 
 	char buf[BUFSIZ];
 

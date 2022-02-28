@@ -11,10 +11,12 @@ TEST(socket_client_tcp, CanReceiveAndSendDataFromServer) {
 	std::cout << "socket_client_tcp test\n\n";
 		auto client {
 			wasl_socket<AF_INET, SOCK_STREAM>::create()
-				->socket ()
 				->connect ({HOST, SERVICE})
 				->build()
 		};
+
+		// TODO calls bind
+		//auto client {make_socket<AF_INET, SOCK_STREAM>({HOST, "9888"})};
 
 		EXPECT_EQ(client->sock_err, SockError::ERR_NONE);
 
@@ -30,5 +32,3 @@ TEST(socket_client_tcp, CanReceiveAndSendDataFromServer) {
 		*ss_cl << "exit" << std::endl;
 
 }
-
-
