@@ -1,8 +1,10 @@
 #ifndef WASL_TEST_HELPERS_H
+#include <wasl/Common.h>
+
+#include <vector>
 #include <thread>
 #include <gsl/string_span> // czstring
 
-#include <wasl/Common.h>
 
 #define SRV_PATH "/tmp/wasl_srv"
 #define CL_PATH "/tmp/wasl_cl"

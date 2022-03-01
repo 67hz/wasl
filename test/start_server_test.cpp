@@ -1,6 +1,5 @@
 #include <wasl/Socket.h>
 #include <wasl/SockStream.h>
-#include <iostream>
 
 #include <gsl/span>
 #include "test_helpers.h"

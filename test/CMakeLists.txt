@@ -105,6 +105,10 @@ add_executable(startServerTCP start_server_test.cpp)
 target_link_libraries(startServerTCP PRIVATE wasl)
 add_test(NAME initServerTCP COMMAND startServerTCP 127.0.0.1 9877)
 
+add_executable(stopServerTCP stop_server_test.cpp)
+target_link_libraries(stopServerTCP PRIVATE wasl)
+add_test(NAME exitServerTCP COMMAND stopServerTCP 127.0.0.1 9877)
+
 add_executable(stream_client_test stream_client_test.cpp)
 add_test(NAME streamClientTest COMMAND stream_client_test)
 set_tests_properties(streamClientTest PROPERTIES LABELS "net")
@@ -113,4 +117,5 @@ target_link_libraries(stream_client_test PRIVATE gtest_main wasl)
 
 set_tests_properties(initServerTCP PROPERTIES FIXTURES_SETUP	serverTCP)
 set_tests_properties(streamClientTest PROPERTIES FIXTURES_REQUIRED serverTCP)
+set_tests_properties(exitServerTCP PROPERTIES FIXTURES_CLEANUP serverTCP)
 #set_tests_properties(stopServer			PROPERTIES FIXTURES_CLEANUP server)
