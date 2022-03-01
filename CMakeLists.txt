@@ -35,7 +35,6 @@ set(wasl_sources
 
 cmake_print_variables(wasl_sources)
 
-
 add_library(wasl ${wasl_sources})
 add_library(Wasl::Wasl ALIAS wasl)
 

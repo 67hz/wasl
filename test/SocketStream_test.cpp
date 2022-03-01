@@ -38,44 +38,6 @@ TEST(sockstream, IsMoveAssignable) {
 
 #if 0
 
-TEST(sockstream_stream, CanSendClientData) {
-	const char msg_from_client[] = "howdy";
-	const char terminate_msg[] = "exit";
-	auto srv { make_socket<AF_INET, SOCK_STREAM>({SERVICE,HOST}) };
-	socket_listen(*srv);
-
-	auto ss_srv = sdopen(sockno(*srv));
-
-	std::stringstream cmd;
-	std::vector<gsl::czstring<>> args = {"./test/scripts/sock_client.pl",
-		"SOCK_STREAM", HOST, SERVICE, terminate_msg};
-	wasl::run_process<wasl::platform_type>("perl", args, false);
-
-	auto client_fd = socket_accept(srv.get());
-	ASSERT_NE(client_fd, -1);
-//	sockstream ss_cl {client_fd}; // same as below
-	auto ss_cl = sdopen(client_fd);
-
-	std::string client_buf;
-	*ss_cl >> client_buf;
-	ASSERT_STREQ(client_buf.c_str(), msg_from_client);
-
-	char msg[] = "abcdefg012345678";
-
-	// send to client
-	*ss_cl << msg << std::endl;
-	// client echoes back so recv echo'd message
-	*ss_cl >> client_buf;
-	ASSERT_STREQ(client_buf.c_str(), msg);
-
-	// send client message to trigger shutdown
-	*ss_cl << terminate_msg << std::endl;
-//	send(client_fd, terminate_msg, sizeof(terminate_msg), 0);
-
-	*ss_cl >> client_buf;
-	ASSERT_STREQ(client_buf.c_str(), "client_close");
-}
-
 TEST(sockstream_datagram, CanReadClientData) {
 	auto srv { make_socket<AF_INET, SOCK_DGRAM>({SERVICE,HOST}) };
 

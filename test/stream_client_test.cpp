@@ -22,7 +22,7 @@ TEST(socket_client_tcp, CanReceiveAndSendDataFromServer) {
 	struct sockaddr_in addr;
 	auto ss_cl { sdopen(sockno(*client)) };
 
-	gsl::czstring<> msg{"sendingdata"};
+	gsl::czstring<> msg {"sendingdata"};
 	*ss_cl << msg << std::endl;
 
 	*ss_cl >> buf;

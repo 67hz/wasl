@@ -1,5 +1,6 @@
 #include <wasl/Socket.h>
 #include <wasl/SockStream.h>
+#include "test_helpers.h"
 
 #include <gsl/span>
 using namespace wasl::ip;
@@ -24,10 +25,10 @@ int main(int argc, char **argv)
 	auto ss_cl { sdopen(sockno(*client)) };
 	assert(is_valid_socket(sockno(*client)));
 
-	*ss_cl << "exit" << std::endl;
+	*ss_cl << SERVER_SHUTDOWN << std::endl;
 
-	//*ss_cl >> buf;
+	*ss_cl >> buf;
+	assert(strcmp(buf, "server_exit") == 0);
 
-	//std::cout << "exit buf:" << buf << std::endl;
 	return 0;
 }

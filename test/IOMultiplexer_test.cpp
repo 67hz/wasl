@@ -13,25 +13,22 @@
 #include <gsl/string_span>
 
 #include "test_helpers.h"
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 using namespace std::string_literals;
-
-
 using namespace wasl::ip;
 
 template <typename Muxer>
-auto create_child_runner(Muxer *mux, SOCKET mux_fd, socket_traits<sockaddr_un>::path_type spath, std::string msg) {
+auto create_child_runner(Muxer *mux, SOCKET mux_fd, path_type spath, std::string msg) {
   return [mux, mux_fd, spath, msg]() {
-		auto s_handle { make_socket<sockaddr_un, SOCK_DGRAM>(spath) };
+		auto s_handle { make_socket<AF_UNIX, SOCK_DGRAM>({spath}) };
 		auto ss = sdopen(sockno(*s_handle));
 		if (!s_handle)
 			FAIL() << strerror(GET_SOCKERRNO()) << '\n';
 
     const auto sfd = sockno(*s_handle);
 
-		if (socket_connect(s_handle.get(), mux_fd) == -1)
+		if (socket_connect(*s_handle, mux_fd) == -1)
 			FAIL() << sfd << " not connected to : " << mux_fd << " "
 				<< strerror(GET_SOCKERRNO()) << '\n';
 
@@ -41,7 +38,7 @@ auto create_child_runner(Muxer *mux, SOCKET mux_fd, socket_traits<sockaddr_un>::
 }
 
 TEST(IOMuxEpollingDatagram, CanDispatchEventDelegates) {
-	auto listener_handle { make_socket<sockaddr_un, SOCK_DGRAM>("/tmp/wasl/srv") };
+	auto listener_handle { make_socket<AF_UNIX, SOCK_DGRAM>({SRV_PATH}) };
   auto listener_fd { sockno(*listener_handle) };
 
   auto muxer {make_muxer<SOCKET>()};
@@ -61,7 +58,7 @@ TEST(IOMuxEpollingDatagram, CanDispatchEventDelegates) {
   // register event on muxers main listening sfd
   muxer->bind_event(listener_fd, printer);
 
-  auto c1 = create_child_runner(muxer.get(), listener_fd, "/tmp/wasl/cl", "first");
+  auto c1 = create_child_runner(muxer.get(), listener_fd, CL_PATH, "first");
 
   auto listen_n = [&event_counter, mux = muxer.get()](int num_events) {
     auto nfds = mux->listen();
@@ -69,8 +66,8 @@ TEST(IOMuxEpollingDatagram, CanDispatchEventDelegates) {
   };
 
   std::thread writer(c1);
-  thread_guard tw(writer);
+  wasl::thread_guard tw(writer);
 
   std::thread listener(listen_n, 3);
-  thread_guard tl(listener);
+  wasl::thread_guard tl(listener);
 }

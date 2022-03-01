@@ -114,6 +114,11 @@ add_test(NAME streamClientTest COMMAND stream_client_test)
 set_tests_properties(streamClientTest PROPERTIES LABELS "net")
 target_link_libraries(stream_client_test PRIVATE gtest_main wasl)
 
+add_executable(iomux_test IOMultiplexer_test.cpp)
+add_test(NAME iomuxerTest COMMAND iomux_test)
+target_link_libraries(iomux_test PRIVATE gtest_main wasl)
+gtest_discover_tests(iomux_test)
+
 
 set_tests_properties(initServerTCP PROPERTIES FIXTURES_SETUP	serverTCP)
 set_tests_properties(streamClientTest PROPERTIES FIXTURES_REQUIRED serverTCP)

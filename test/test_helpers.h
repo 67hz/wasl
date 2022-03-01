@@ -11,6 +11,7 @@
 #define HOST "127.0.0.1"
 #define HOST6 "::1"
 #define SERVICE "9877"
+#define SERVER_SHUTDOWN "exit"
 
 #if defined(SYS_API_WIN32)
 #include <Windows.h>

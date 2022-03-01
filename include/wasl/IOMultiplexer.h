@@ -20,6 +20,8 @@
 using epoll_event = std::nullptr_t;
 #endif
 
+#include <iostream>
+
 namespace wasl {
 namespace ip {
 
@@ -80,22 +82,40 @@ private:
   event_map<T, std::string> _event_handlers;
 };
 
-template <typename T, typename P, typename Enable = void> struct epoll_muxer {};
+template <typename T, typename = void> struct epoll_muxer {
+  using event_list = std::vector<T>;
+	static T init() {
+		std::cout << "default muxer\n";
+		T other;
+		return other;
+	}
+
+	static bool link_node(T poll_fd, T sfd) {
+		return false;
+	}
+
+	static event_list wait(T poll_fd) {
+	    event_list ev_list;
+	    return ev_list;
+	}
+};
 
 /// epoll() based event muxer
 /// TODO check for >2.6 linux, and fix enableif switch
 /// \note all static members for EBCO
-template <typename T, typename P>
-struct epoll_muxer<T, P, EnableIfSamePlatform<P, posix>> {
+template <typename T>
+struct epoll_muxer<T, EnableIfPlatform<posix>> {
   using event_type = epoll_event;
   static constexpr int event_max = 10; // max events to fetch at a time
   using event_list = std::vector<T>;
 
-  /// creates a new epoll instance and adds handle to interest list
-  /// to trigger notification on any input data received on the handle.
+  /// create a new epoll instance.
   ///
   /// \return file descriptor for primary listening (epoll) socket
-  static T init() { return epoll_create(event_max); }
+  static T init() {
+		std::cout << "epoll muxer\n";
+	  return epoll_create(event_max);
+  }
 
   static bool link_node(T poll_fd, T sfd) {
     struct epoll_event ev;
@@ -131,7 +151,7 @@ struct epoll_muxer<T, P, EnableIfSamePlatform<P, posix>> {
   }
 };
 
-template <typename T, class Muxer = epoll_muxer<T, platform_type>>
+template <typename T, class Muxer = epoll_muxer<T>>
 auto make_muxer() {
   return std::make_unique<io_mux_base<T, Muxer>>();
 }

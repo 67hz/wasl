@@ -18,14 +18,14 @@ using namespace std::string_literals;
 
 
 int main(int argc, char *argv[])
-{ if (argc < 3)
+{
+	if (argc < 3)
 		exit(EXIT_FAILURE);
 
 	int max_fd;
 	int nready;
 	fd_set allset, readset;
 	std::array<int, FD_SETSIZE> clients;
-	std::array<int, FD_SETSIZE>::iterator max_client_used_it = clients.begin();
 	clients.fill(-1);
 
 	Address_info serverAddrInfo;
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 			auto it = std::find(clients.begin(), clients.end(), -1);
 			if (it != clients.end()) {
 				*it = client_fd;
-				journal << "joined fd: " << client_fd << '\n';
+				journal << "joined fd: " << client_fd << std::endl;
 				std::cout << "joined fd: " << client_fd << '\n';
 			} else {
 				journal << "Connection Limit Exceeded\n";
@@ -66,9 +66,6 @@ int main(int argc, char *argv[])
 			FD_SET(client_fd, &allset);
 			if (client_fd > max_fd)
 				max_fd = client_fd;
-
-			if (it > max_client_used_it)
-				max_client_used_it = it;
 
 			if (--nready <= 0)
 				continue;		// no more readable sockets
@@ -86,14 +83,15 @@ int main(int argc, char *argv[])
 						FD_CLR(*client, &allset);
 						*client = -1;
 					} else {
-						if (strcmp(buf, "exit") == 0) {
-							*cl_sockstream << "server shutting down" << std::endl;
-							journal << "server shut down by fd: " << *client << '\n';
+						if (strcmp(buf, SERVER_SHUTDOWN) == 0) {
+							*cl_sockstream << "server_exit" << std::endl;
+							journal << "server shut down by fd: " << *client << std::endl;
 							close(sockno(*server));
 							exit(EXIT_SUCCESS);
 						} else {
-							journal << "fd: " << *client << " : " << buf << '\n';
-							*cl_sockstream << "server sent: " << buf << std::endl;
+							journal << "fd: " << *client << " : " << buf << std::endl;
+							// echo back to client
+							*cl_sockstream << buf << std::endl;
 						}
 					}
 

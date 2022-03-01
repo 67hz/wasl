@@ -33,6 +33,7 @@
 
 namespace wasl {
 namespace ip {
+
 using path_type = gsl::czstring<>;
 
 struct Address_info {
@@ -45,27 +46,37 @@ template <typename SocketNode> struct socket_builder;
 template <typename Derived> class socket_builder_base;
 template <int Family, int SocketType> class wasl_socket;
 
+struct inet_socket_tag {};
+struct path_socket_tag {};
+struct AF_UNIX_tag : public path_socket_tag {};
+struct AF_INET_tag : public inet_socket_tag {};
+struct AF_INET6_tag : public inet_socket_tag {};
+
 // \NOTE sockaddr_in.sa_family_t holds family in struct but for compile-time
 // these traits are useful.
 template <int SocketFamily> struct socket_traits {
   static constexpr int value = SocketFamily;
   using addr_type = struct sockaddr_storage;
+	using tag = inet_socket_tag;
 };
 
 template <> struct socket_traits<AF_INET> {
   static constexpr int value = AF_INET;
   using addr_type = struct sockaddr_in;
+	using tag = inet_socket_tag;
 };
 
 template <> struct socket_traits<AF_INET6> {
   static constexpr int value = AF_INET6;
   using addr_type = struct sockaddr_in6;
+	using tag = inet_socket_tag;
 };
 
 #ifdef SYS_API_LINUX
 template <> struct socket_traits<AF_LOCAL> { // == AF_UNIX
   static constexpr int value = AF_LOCAL;
   using addr_type = struct sockaddr_un;
+	using tag = path_socket_tag;
 };
 #endif // SYS_API_LINUX
 
@@ -124,23 +135,14 @@ auto create_inet_address(Address_info info) {
 
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 typename traits::addr_type *
-create_address(Address_info info,
-               std::integral_constant<int, AF_INET>) {
-  return create_inet_address<Family, SocketType>(info);
-}
-
-template <int Family, int SocketType, typename traits = socket_traits<Family>>
-typename traits::addr_type *
-create_address(Address_info info,
-               std::integral_constant<int, AF_INET6>) {
+create_address(Address_info info, inet_socket_tag) {
   return create_inet_address<Family, SocketType>(info);
 }
 
 #ifdef SYS_API_LINUX
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 typename traits::addr_type *
-create_address(Address_info info,
-               std::integral_constant<int, AF_UNIX>) {
+create_address(Address_info info, path_socket_tag) {
   struct sockaddr_un *addr = new sockaddr_un;
   addr->sun_family = AF_UNIX;
   assert((strlen(info.host) < sizeof(addr->sun_path) - 1));
@@ -175,7 +177,7 @@ template <int Family, int Socket_Type, typename traits = socket_traits<Family>,
 SOCKET socket_connect(const wasl_socket<Family, Socket_Type> &node,
                       Address_info info) {
 	auto peer_addr = create_address<Family, Socket_Type>(
-			info, std::integral_constant<int, Family>());
+			info, typename traits::tag());
 
 	return (::connect(sockno(node), reinterpret_cast<struct sockaddr *>(peer_addr),
 								sizeof(typename traits::addr_type)));
@@ -329,7 +331,7 @@ public:
 
   Derived *bind(Address_info info) {
     // TODO create partial specialization or tag dispatch these?
-		auto addr = create_address <Derived::family, Derived::socket_type>(info, std::integral_constant<int, traits<Derived>::value>());
+		auto addr = create_address <Derived::family, Derived::socket_type>(info, typename traits<Derived>::tag());
 
     if (info.reuse_addr) {
       int optval{1};
