@@ -37,8 +37,8 @@ namespace ip {
 using path_type = gsl::czstring<>;
 
 struct Address_info {
-  path_type host{ nullptr };
-  path_type service{ nullptr };
+  path_type host{nullptr};
+  path_type service{nullptr};
   bool reuse_addr{true};
 };
 
@@ -57,26 +57,26 @@ struct AF_INET6_tag : public inet_socket_tag {};
 template <int SocketFamily> struct socket_traits {
   static constexpr int value = SocketFamily;
   using addr_type = struct sockaddr_storage;
-	using tag = inet_socket_tag;
+  using tag = inet_socket_tag;
 };
 
 template <> struct socket_traits<AF_INET> {
   static constexpr int value = AF_INET;
   using addr_type = struct sockaddr_in;
-	using tag = inet_socket_tag;
+  using tag = inet_socket_tag;
 };
 
 template <> struct socket_traits<AF_INET6> {
   static constexpr int value = AF_INET6;
   using addr_type = struct sockaddr_in6;
-	using tag = inet_socket_tag;
+  using tag = inet_socket_tag;
 };
 
 #ifdef SYS_API_LINUX
 template <> struct socket_traits<AF_LOCAL> { // == AF_UNIX
   static constexpr int value = AF_LOCAL;
   using addr_type = struct sockaddr_un;
-	using tag = path_socket_tag;
+  using tag = path_socket_tag;
 };
 #endif // SYS_API_LINUX
 
@@ -134,15 +134,13 @@ auto create_inet_address(Address_info info) {
 }
 
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-typename traits::addr_type *
-create_address(Address_info info, inet_socket_tag) {
+typename traits::addr_type *create_address(Address_info info, inet_socket_tag) {
   return create_inet_address<Family, SocketType>(info);
 }
 
 #ifdef SYS_API_LINUX
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-typename traits::addr_type *
-create_address(Address_info info, path_socket_tag) {
+typename traits::addr_type *create_address(Address_info info, path_socket_tag) {
   struct sockaddr_un *addr = new sockaddr_un;
   addr->sun_family = AF_UNIX;
   assert((strlen(info.host) < sizeof(addr->sun_path) - 1));
@@ -176,12 +174,12 @@ template <int Family, int Socket_Type, typename traits = socket_traits<Family>,
           socklen_t len = sizeof(typename traits::addr_type)>
 SOCKET socket_connect(const wasl_socket<Family, Socket_Type> &node,
                       Address_info info) {
-	auto peer_addr = create_address<Family, Socket_Type>(
-			info, typename traits::tag());
+  auto peer_addr =
+      create_address<Family, Socket_Type>(info, typename traits::tag());
 
-	return (::connect(sockno(node), reinterpret_cast<struct sockaddr *>(peer_addr),
-								sizeof(typename traits::addr_type)));
-
+  return (::connect(sockno(node),
+                    reinterpret_cast<struct sockaddr *>(peer_addr),
+                    sizeof(typename traits::addr_type)));
 }
 
 template <int Family, int Socket_Type,
@@ -323,7 +321,14 @@ public:
 #endif
 
   Derived *connect(Address_info peer_info) {
-		if (socket_connect(*(asDerived()->sock), peer_info) == -1) {
+    if (socket_connect(*(asDerived()->sock), peer_info) == -1) {
+      asDerived()->sock->sock_err |= SockError::ERR_CONNECT;
+    }
+    return asDerived();
+  }
+
+  Derived *connect(SOCKET link) {
+    if (socket_connect(*(asDerived()->sock), link) == -1) {
       asDerived()->sock->sock_err |= SockError::ERR_CONNECT;
     }
     return asDerived();
@@ -331,7 +336,8 @@ public:
 
   Derived *bind(Address_info info) {
     // TODO create partial specialization or tag dispatch these?
-		auto addr = create_address <Derived::family, Derived::socket_type>(info, typename traits<Derived>::tag());
+    auto addr = create_address<Derived::family, Derived::socket_type>(
+        info, typename traits<Derived>::tag());
 
     if (info.reuse_addr) {
       int optval{1};
@@ -373,9 +379,7 @@ struct socket_builder : public socket_builder_base<socket_builder<SocketNode>> {
 
   std::unique_ptr<SocketNode> sock;
 
-  socket_builder() : sock{new SocketNode} {
-		this->socket();
-	}
+  socket_builder() : sock{new SocketNode} { this->socket(); }
 
   // TODO reenable in partially specialized inet (TCP) builder
   // socket_builder *listen ();
@@ -396,8 +400,7 @@ template <int Family, int SocketType,
           EnableIfSocketType<typename socket_traits<Family>::addr_type> = true>
 std::unique_ptr<wasl_socket<Family, SocketType>>
 make_socket(Address_info info) {
-  auto socket{
-      wasl_socket<Family, SocketType>::create()->bind(info)->build()};
+  auto socket{wasl_socket<Family, SocketType>::create()->bind(info)->build()};
 
 #ifndef NDEBUG
   if (!socket) {
@@ -412,10 +415,9 @@ template <int Family, int SocketType,
           EnableIfSocketType<typename socket_traits<Family>::addr_type> = true>
 std::unique_ptr<wasl_socket<Family, SocketType>>
 make_socket_listener(Address_info info) {
-	auto sock = make_socket<Family, SocketType>(info);
-	socket_listen(*sock);
-	return std::move(sock);
-
+  auto sock = make_socket<Family, SocketType>(info);
+  socket_listen(*sock);
+  return std::move(sock);
 }
 
 } // namespace ip
