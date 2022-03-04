@@ -120,10 +120,10 @@ int run_process(const char* command, std::vector<gsl::czstring<>> args, bool wai
 		case -1:
 			return -1;
 		case 0: // child context
-			std::cout << "child cpid: " << cpid << '\n';
+			//std::cout << "child cpid: " << cpid << '\n';
 			break;
 		default: {
-			std::cout << "parent cpid: " << cpid << '\n';
+			//std::cout << "parent cpid: " << cpid << '\n';
 			if (wait_child) {
 				if (wait_for_pid_fork(cpid) == 0)
 					_exit(EXIT_SUCCESS);
@@ -198,7 +198,7 @@ void pr_err(LPTSTR lpszFunction) {
       TEXT("%s failed with error: %d: %s"),
       lpszFunction, dw, lpMsgBuf);
 
-  std::cout << (LPCTSTR)lpDisplayBuf << '\n';
+//  std::cout << (LPCTSTR)lpDisplayBuf << '\n';
 }
 
 

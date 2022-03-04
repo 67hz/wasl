@@ -43,6 +43,9 @@ cmake_print_variables(test_helpers)
 add_executable(echo_server_stream nodes/echo_server_stream.cpp)
 target_link_libraries(echo_server_stream PRIVATE wasl)
 
+add_executable(echo_server_epoll nodes/echo_server_epoll.cpp)
+target_link_libraries(echo_server_epoll PRIVATE wasl)
+
 macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES TEST_WORKING_DIRECTORY)
   add_executable(${TESTNAME} ${FILES}
 		${TEST_SCRIPTS_DIR}/sock_client.pl # TODO use findperl module
@@ -87,9 +90,7 @@ add_custom_target(
 
 # lib tests
 package_add_test_with_libraries(vproxy_test VirtualProxy_test.cpp Wasl::Wasl "${PROJECT_DIR}")
-#package_add_test_with_libraries(iomux_test IOMultiplexer_test.cpp wasl "${PROJECT_DIR}")
-#package_add_test_with_libraries(socket_test Socket_test.cpp wasl "${PROJECT_DIR}")
-#package_add_test_with_libraries(socketstream_test SocketStream_test.cpp wasl "${PROJECT_DIR}")
+
 
 add_executable(socketstream_test SocketStream_test.cpp)
 add_test(NAME sockstreamTest COMMAND socketstream_test)
@@ -101,9 +102,11 @@ add_test(NAME socketTest COMMAND socket_test)
 target_link_libraries(socket_test PRIVATE gtest_main wasl)
 gtest_discover_tests(socket_test)
 
-add_executable(startServerTCP start_server_test.cpp)
-target_link_libraries(startServerTCP PRIVATE wasl)
-add_test(NAME initServerTCP COMMAND startServerTCP 127.0.0.1 9877)
+add_executable(startDaemon daemonize.cpp)
+target_link_libraries(startDaemon PRIVATE wasl)
+
+
+add_test(NAME initServerTCP COMMAND startDaemon ./echo_server_stream 127.0.0.1 9877)
 
 add_executable(stopServerTCP stop_server_test.cpp)
 target_link_libraries(stopServerTCP PRIVATE wasl)
@@ -115,8 +118,9 @@ set_tests_properties(streamClientTest PROPERTIES LABELS "net")
 target_link_libraries(stream_client_test PRIVATE gtest_main wasl)
 
 add_executable(iomux_test IOMultiplexer_test.cpp)
-add_test(NAME iomuxerTest COMMAND iomux_test)
 target_link_libraries(iomux_test PRIVATE gtest_main wasl)
+add_test(NAME iomuxerTest COMMAND iomux_test)
+set_tests_properties(iomuxerTest PROPERTIES LABELS "muxer")
 gtest_discover_tests(iomux_test)
 
 

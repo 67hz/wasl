@@ -20,11 +20,10 @@ namespace ip {
 template <typename PlatformType> struct basic_sockio {
   static constexpr int BUFLEN = BUFSIZ;
 
-  static ssize_t rv_recv(SOCKET sfd, char *buf, size_t buf_len, int flags = 0) {
-    struct sockaddr_storage peer_addr;
-    socklen_t peer_addr_len;
+  static ssize_t rv_recv(SOCKET sfd, char *buf, size_t buf_len, sockaddr_storage *peer_addr, int flags = 0) {
+    socklen_t peer_addr_len { sizeof(*peer_addr) };
 
-    ssize_t n_read = recvfrom(sfd, buf, buf_len, flags, (SOCKADDR *)&peer_addr,
+    ssize_t n_read = recvfrom(sfd, buf, buf_len, flags, (SOCKADDR *)peer_addr,
                               &peer_addr_len);
 
     // TODO use peer_addr here or return to caller
@@ -42,7 +41,6 @@ template <typename PlatformType> struct basic_sockio {
 /// \todo override peek() using MSG_PEEK
 template <typename SockIO>
 class sockbuf : public std::streambuf, private SockIO {
-  // return underlying socket descriptor
 public:
   /// \param[in] fd file descriptor stream will attach to.
   explicit sockbuf(SOCKET fd) : m_sockFD{fd} { // output
@@ -117,7 +115,7 @@ protected:
             numPutback);
 
     int num = SockIO::rv_recv(m_sockFD, m_in_buffer + PUTBACK_BUFSZ,
-                              BUFSIZ - PUTBACK_BUFSZ, 0);
+                              BUFSIZ - PUTBACK_BUFSZ, &last_peer_addr, 0);
 
     if (num <= 0) {
       return std::char_traits<char>::eof();
@@ -135,6 +133,7 @@ protected:
 
 private:
   SOCKET m_sockFD;
+  sockaddr_storage last_peer_addr;
   char_type m_in_buffer[SockIO::BUFLEN];
   char_type m_out_buffer[SockIO::BUFLEN];
 
@@ -196,6 +195,9 @@ public:
     this->init(rdbuf());
     return 0;
   }
+
+  /// return peer address of last data received
+  sockaddr_storage last_peer() const { return m_sockbuf->last_peer_addr; }
 
 private:
   SOCKET _sd() const { return m_sockbuf->m_sockFD; }

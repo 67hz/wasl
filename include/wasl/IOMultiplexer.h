@@ -10,6 +10,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #ifdef SYS_API_LINUX
 #include <sys/epoll.h>
@@ -30,9 +31,7 @@ using socket_handler_fun = std::function<void(SOCKET, std::string)>;
 template <typename Label, typename Callable = socket_handler_fun>
 using labeled_handler = std::pair<Label, Callable>;
 
-/// Hold a map of labeled callables for event delegation.
-/// This is like a decomposed command pattern using a map of generic lambdas,
-/// functors, or any other invokable as the commands.
+///  A map of labeled callables for event delegation.
 template <typename T, typename L>
 using event_map = std::map<T, labeled_handler<L>>;
 
@@ -43,20 +42,18 @@ public:
   int listen() {
     // pull fds with ready input
     auto ready_fds = this->wait(_listener_fd);
-    if (!ready_fds.empty()) {
-      for (auto fd : ready_fds) {
-        auto it = _event_handlers.find(fd);
-
-        if (it != _event_handlers.end())
+    for_each(ready_fds.begin(), ready_fds.end(), [eh = this->_event_handlers](auto fd) {
+        auto it = eh.find(fd);
+        if (it != eh.end()) {
           it->second.second(fd, "iomux event triggered: " + it->second.first);
-      }
-    }
+        }
+    });
 
     return ready_fds.size();
   }
 
   /// Bind an event handler to a socket descriptor.
-  /// The event will be triggered upon reception of input on sfd.
+  /// The event will be triggered upon reception of input on fd.
   template <typename U> void bind_event(T fd, labeled_handler<U> f) {
     // todo add proper find, replace in another class.
     // move all insert, remove, logic out to allow other muxers to use as a
@@ -96,7 +93,6 @@ template <typename T> struct epoll_muxer<T, EnableIfPlatform<posix>> {
   ///
   /// \return file descriptor for primary listening (epoll) socket
   static T init() {
-    std::cout << "epoll muxer\n";
     return epoll_create(event_max);
   }
 
@@ -111,23 +107,42 @@ template <typename T> struct epoll_muxer<T, EnableIfPlatform<posix>> {
   }
 
   /// Listen for changes to any descriptors held in evlist.
-  /// return number of ready file descriptors
-  ///
-  /// \return 0 (success), -1 (error), n (number of fds ready)
+
+  /// \return vector of file descriptors
   static event_list wait(T poll_fd) {
-    struct epoll_event events[event_max];
+    struct epoll_event events[event_max] {};
     event_list ev_list;
     auto nr_events = epoll_wait(poll_fd, events, event_max, -1);
 
     /// \todo on close events remove ev.data.fd from event delegates map and
     /// move associated handler to another socket.
     for (auto ev : events) {
-      if (ev_list.size() >= nr_events) {
+      std::cout << "nr_events: " << nr_events << '\n';
+      std::cout << "ev_list.size(): " << ev_list.size() << '\n';
+      if (ev_list.size() >= nr_events)
         return ev_list;
+
+
+      if (ev.events & EPOLLIN)
+	      std::cout << "got input on: " << ev.data.fd << '\n';
+      if (ev.events & (EPOLLHUP | EPOLLERR)) { // TLPI 1363
+	      auto it = find(ev_list.begin(), ev_list.end(), ev.data.fd);
+	      if (it != ev_list.end()) {
+		      //swap(it, ev_list.back());
+		      //ev_list.pop_back();
+		      ev_list.erase(it);
+		      if (close(ev.data.fd) == -1)
+			      std::cerr << "Could not close fd:" << ev.data.fd;
+		      epoll_ctl(poll_fd, EPOLL_CTL_DEL, ev.data.fd, &ev);
+		      std::cout << "removing fd: " << ev.data.fd << std::endl;
+	      }
       }
+      if (ev.events & EPOLLRDHUP)
+	      std::cerr << "got epollrdhup";
       if (ev.data.fd > 0) {
         ev_list.push_back(ev.data.fd);
       }
+      --nr_events;
     }
 
     return ev_list;
