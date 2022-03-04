@@ -146,7 +146,7 @@ typename traits::addr_type *create_address(Address_info info, path_socket_tag) {
   assert((strlen(info.host) < sizeof(addr->sun_path) - 1));
 
   // remove path in case artifacts were left from a previous run
-  unlink(info.host);
+//  unlink(info.host);
 
   strncpy(addr->sun_path, info.host, sizeof(addr->sun_path) - 1);
   return addr;
@@ -338,6 +338,11 @@ public:
     // TODO create partial specialization or tag dispatch these?
     auto addr = create_address<Derived::family, Derived::socket_type>(
         info, typename traits<Derived>::tag());
+
+    if (Derived::family == AF_LOCAL) {  // unix domain
+	  // remove any artifacts from socket invocation
+	  remove(info.host);
+    }
 
     if (info.reuse_addr) {
       int optval{1};

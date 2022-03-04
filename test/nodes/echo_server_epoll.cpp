@@ -41,14 +41,6 @@ int main(int argc, char *argv[])
 			++event_counter;
 			auto ss = sdopen(sfd);
 
-#if 0
-			if (!muxer->add(ss->last_peer())) {
-				std::cerr << "iomux add failed fd: " << sfd << ": "
-				<< strerror(errno) << '\n';
-			}
-
-#endif
-
 			char buf[BUFSIZ];
 			*ss >> buf;
 			auto lastpeer { ss->last_peer() };
@@ -56,9 +48,9 @@ int main(int argc, char *argv[])
 
 			if (strcmp(buf, "exit") == 0) {
 				close(sfd);
+				return;
 			}
 			std::cout << "serverbuf: " << buf << std::endl;
-//			*ss << "who somebody got this" << std::endl;
 			auto msg {"who somebody"};
 			if (sendto(sfd, msg, sizeof(msg), 0, (SOCKADDR *)peerAddr, sizeof(sockaddr_un)) == -1) {
 				std::cerr << "sending failed " << strerror(errno) << '\n';
@@ -68,7 +60,6 @@ int main(int argc, char *argv[])
 	// register event on muxers main listening sfd
 	muxer->bind_event(listener_fd, printer);
 
-//	auto c1 = create_child_runner(muxer.get(), listener_fd, CL_PATH, "first");
 
 	auto listen_n = [&event_counter, mux = muxer.get()]() {
 		auto nfds = mux->listen();
