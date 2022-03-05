@@ -130,6 +130,10 @@ add_test(NAME unixDatagramClientTest COMMAND unix_datagram_client_test)
 set_tests_properties(unixDatagramClientTest PROPERTIES LABELS "unix")
 target_link_libraries(unix_datagram_client_test PRIVATE gtest_main wasl)
 
+add_executable(stopServerUnixDatagram stop_unix_datagram_server_test.cpp)
+target_link_libraries(stopServerUnixDatagram PRIVATE wasl)
+add_test(NAME exitServerUnixDatagram COMMAND stopServerUnixDatagram "/tmp/wasl_srv")
+
 
 set_tests_properties(initServerTCP PROPERTIES FIXTURES_SETUP	serverTCP)
 set_tests_properties(streamClientTest PROPERTIES FIXTURES_REQUIRED serverTCP)
@@ -139,3 +143,4 @@ set_tests_properties(exitServerTCP PROPERTIES FIXTURES_CLEANUP serverTCP)
 
 set_tests_properties(initServerUnixDatagram PROPERTIES FIXTURES_SETUP serverUnixDatagram)
 set_tests_properties(unixDatagramClientTest PROPERTIES FIXTURES_REQUIRED serverUnixDatagram)
+set_tests_properties(exitServerUnixDatagram PROPERTIES FIXTURES_CLEANUP serverUnixDatagram)

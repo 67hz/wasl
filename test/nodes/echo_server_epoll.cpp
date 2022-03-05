@@ -47,6 +47,10 @@ int main(int argc, char *argv[])
 			struct sockaddr_un* peerAddr = reinterpret_cast<struct sockaddr_un*>(&lastpeer);
 
 			if (strcmp(buf, "exit") == 0) {
+				auto msg {"server_exit"};
+				if (sendto(sfd, msg, sizeof(msg), 0, (SOCKADDR *)peerAddr, sizeof(sockaddr_un)) == -1) {
+					std::cerr << "sending failed " << strerror(errno) << '\n';
+				}
 				close(sfd);
 				return;
 			}

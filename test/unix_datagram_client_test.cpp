@@ -15,11 +15,9 @@ TEST(socket_client_unix_datagram, CanReceiveAndSendDataFromServer) {
 	auto client {
 		wasl_socket<AF_UNIX, SOCK_DGRAM>::create()
 //			->bind({.host = CL_PATH})
-			->connect ({.host = SRV_PATH})
+			->connect (addr_info)
 			->build()
 	};
 
 	EXPECT_EQ(client->sock_err, SockError::ERR_NONE);
-
-
 }
