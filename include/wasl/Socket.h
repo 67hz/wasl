@@ -145,9 +145,6 @@ typename traits::addr_type *create_address(Address_info info, path_socket_tag) {
   addr->sun_family = AF_UNIX;
   assert((strlen(info.host) < sizeof(addr->sun_path) - 1));
 
-  // remove path in case artifacts were left from a previous run
-//  unlink(info.host);
-
   strncpy(addr->sun_path, info.host, sizeof(addr->sun_path) - 1);
   return addr;
 }
@@ -212,7 +209,6 @@ SOCKET socket_accept(const wasl_socket<Family, Socket_Type> *listening_node) {
 /// RAII Wrapper for a socket that close()'s socket connection on destruction.
 /// \tparam Family socket family (address protocol suite)
 /// \tparam SocketType  Type of socket, e.g., SOCK_DGRAM
-/// \TODO check is_integral_type or use value param
 template <int Family, int SocketType> class wasl_socket {
 public:
   using traits = socket_traits<Family>;
@@ -222,26 +218,12 @@ public:
   // errno with GET_SOCKERRNO() to handle
   SockError sock_err = SockError::ERR_NONE;
 
-#ifdef SYS_API_LINUX
-  void destroy(std::integral_constant<int, AF_UNIX>) {
-    auto addr{as_address(*this)};
-    if (addr->sun_path)
-      remove(addr->sun_path);
-  }
-#endif
-
-  // close socket for everything except unix domain sockets
-  void destroy(...) {
-    if (is_valid_socket(sd)) {
-#ifndef NDEBUG
-      std::cout << "closing socket: " << sd << '\n';
-#endif
-      closesocket(sd);
-    }
-  }
+	void close() {
+		this->destroy(typename traits::tag());
+	}
 
   ~wasl_socket() {
-    destroy(std::integral_constant<int, traits::value>());
+    destroy(typename traits::tag());
 
 #ifdef SYS_API_WIN32
     WSACleanup();
@@ -286,6 +268,25 @@ private:
   SOCKET sd{INVALID_SOCKET}; // a socket descriptor
 
   friend socket_builder<wasl_socket<Family, SocketType>>;
+
+#ifdef SYS_API_LINUX
+  void destroy(path_socket_tag) {
+		std::cout << "\n\nunix destructor\n";
+    auto addr{as_address(*this)};
+    if (addr->sun_path)
+      remove(addr->sun_path);
+  }
+#endif
+
+  // close socket for everything except unix domain sockets
+  void destroy(inet_socket_tag) {
+    if (is_valid_socket(sd)) {
+#ifndef NDEBUG
+      std::cout << "closing socket: " << sd << '\n';
+#endif
+      closesocket(sd);
+    }
+  }
 
   template <typename B> friend class socket_builder_base;
 
@@ -335,13 +336,12 @@ public:
   }
 
   Derived *bind(Address_info info) {
-    // TODO create partial specialization or tag dispatch these?
     auto addr = create_address<Derived::family, Derived::socket_type>(
         info, typename traits<Derived>::tag());
 
     if (Derived::family == AF_LOCAL) {  // unix domain
 	  // remove any artifacts from socket invocation
-	  remove(info.host);
+			remove(info.host);
     }
 
     if (info.reuse_addr) {

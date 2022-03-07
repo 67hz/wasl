@@ -80,7 +80,7 @@ constexpr static int INVALID_SOCKET = -1;
 using SOCKET = int;
 using SOCKADDR = struct sockaddr;
 #define GET_SOCKERRNO() (errno)
-#define closesocket(x) close((x))
+#define closesocket(x) ::close((x))
 constexpr bool is_valid_socket(SOCKET s) { return s != INVALID_SOCKET; }
 
 #else /* Win32 */

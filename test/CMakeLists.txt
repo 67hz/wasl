@@ -89,7 +89,7 @@ add_custom_target(
 		)
 
 # lib tests
-package_add_test_with_libraries(vproxy_test VirtualProxy_test.cpp Wasl::Wasl "${PROJECT_DIR}")
+#package_add_test_with_libraries(vproxy_test VirtualProxy_test.cpp Wasl::Wasl "${PROJECT_DIR}")
 
 
 add_executable(socketstream_test SocketStream_test.cpp)

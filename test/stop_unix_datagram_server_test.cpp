@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 
 	*ss_cl << SERVER_SHUTDOWN << std::endl;
 
-	*ss_cl >> buf;
+//	*ss_cl >> buf;
 
 	// TODO send_fd and check response from server
 //	assert(strcmp(buf, "server_exit") == 0);
