@@ -1,3 +1,4 @@
+#include <sstream>
 #ifndef WASL_TEST_HELPERS_H
 #include <wasl/Common.h>
 
@@ -24,9 +25,22 @@
 #include <unistd.h>
 #endif
 
+#include <iostream>
 
 
 namespace wasl {
+
+static constexpr const char* SOCK_TEMPLATE {"/tmp/wasl.XXXXXX"};
+
+const char* makeSocketPath() {
+	char tmpSock[strlen(wasl::SOCK_TEMPLATE)+1];
+	strncpy(tmpSock, wasl::SOCK_TEMPLATE, sizeof(tmpSock));
+	mkstemp(tmpSock);
+	std::ostringstream os;
+	os << tmpSock;
+	return os.str().c_str();
+}
+
 
 class thread_guard {
   std::thread &t;

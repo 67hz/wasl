@@ -39,13 +39,6 @@ set(TEST_SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
 file(TO_NATIVE_PATH ${TEST_SCRIPTS_DIR} testScripts)
 cmake_print_variables(test_helpers)
 
-
-add_executable(echo_server_stream nodes/echo_server_stream.cpp)
-target_link_libraries(echo_server_stream PRIVATE wasl)
-
-add_executable(echo_server_epoll nodes/echo_server_epoll.cpp)
-target_link_libraries(echo_server_epoll PRIVATE wasl)
-
 macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES TEST_WORKING_DIRECTORY)
   add_executable(${TESTNAME} ${FILES}
 		${TEST_SCRIPTS_DIR}/sock_client.pl # TODO use findperl module
@@ -91,6 +84,10 @@ add_custom_target(
 # lib tests
 #package_add_test_with_libraries(vproxy_test VirtualProxy_test.cpp Wasl::Wasl "${PROJECT_DIR}")
 
+add_executable(startDaemon daemonize.cpp)
+target_link_libraries(startDaemon PRIVATE wasl)
+
+
 
 add_executable(socketstream_test SocketStream_test.cpp)
 add_test(NAME sockstreamTest COMMAND socketstream_test)
@@ -102,12 +99,12 @@ add_test(NAME socketTest COMMAND socket_test)
 target_link_libraries(socket_test PRIVATE gtest_main wasl)
 gtest_discover_tests(socket_test)
 
-add_executable(startDaemon daemonize.cpp)
-target_link_libraries(startDaemon PRIVATE wasl)
 
+add_executable(echo_server_stream nodes/echo_server_stream.cpp)
+target_link_libraries(echo_server_stream PRIVATE wasl)
 
 add_test(NAME initServerTCP COMMAND startDaemon ./echo_server_stream 127.0.0.1 9877)
-add_test(NAME initServerUnixDatagram COMMAND startDaemon ./echo_server_epoll)
+add_test(NAME initServerUnixDatagram COMMAND startDaemon ./echo_server_epoll "/tmp/wasl_srv")
 
 add_executable(stopServerTCP stop_server_test.cpp)
 target_link_libraries(stopServerTCP PRIVATE wasl)
@@ -118,12 +115,19 @@ add_test(NAME streamClientTest COMMAND stream_client_test)
 set_tests_properties(streamClientTest PROPERTIES LABELS "net")
 target_link_libraries(stream_client_test PRIVATE gtest_main wasl)
 
+set_tests_properties(initServerTCP PROPERTIES FIXTURES_SETUP	serverTCP)
+set_tests_properties(streamClientTest PROPERTIES FIXTURES_REQUIRED serverTCP)
+set_tests_properties(exitServerTCP PROPERTIES FIXTURES_CLEANUP serverTCP)
 
-add_executable(iomux_test IOMultiplexer_test.cpp)
-target_link_libraries(iomux_test PRIVATE gtest_main wasl)
-add_test(NAME iomuxerTest COMMAND iomux_test)
-set_tests_properties(iomuxerTest PROPERTIES LABELS "muxer")
-gtest_discover_tests(iomux_test)
+
+#add_executable(iomux_test IOMultiplexer_test.cpp)
+#target_link_libraries(iomux_test PRIVATE gtest_main wasl)
+#add_test(NAME iomuxerTest COMMAND iomux_test)
+#set_tests_properties(iomuxerTest PROPERTIES LABELS "muxer")
+#gtest_discover_tests(iomux_test)
+
+add_executable(echo_server_epoll nodes/echo_server_epoll.cpp)
+target_link_libraries(echo_server_epoll PRIVATE wasl)
 
 add_executable(unix_datagram_client_test unix_datagram_client_test.cpp)
 add_test(NAME unixDatagramClientTest COMMAND unix_datagram_client_test)
@@ -133,13 +137,6 @@ target_link_libraries(unix_datagram_client_test PRIVATE gtest_main wasl)
 add_executable(stopServerUnixDatagram stop_unix_datagram_server_test.cpp)
 target_link_libraries(stopServerUnixDatagram PRIVATE wasl)
 add_test(NAME exitServerUnixDatagram COMMAND stopServerUnixDatagram "/tmp/wasl_srv")
-
-
-set_tests_properties(initServerTCP PROPERTIES FIXTURES_SETUP	serverTCP)
-set_tests_properties(streamClientTest PROPERTIES FIXTURES_REQUIRED serverTCP)
-set_tests_properties(exitServerTCP PROPERTIES FIXTURES_CLEANUP serverTCP)
-#set_tests_properties(stopServer			PROPERTIES FIXTURES_CLEANUP server)
-
 
 set_tests_properties(initServerUnixDatagram PROPERTIES FIXTURES_SETUP serverUnixDatagram)
 set_tests_properties(unixDatagramClientTest PROPERTIES FIXTURES_REQUIRED serverUnixDatagram)

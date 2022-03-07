@@ -36,8 +36,8 @@ static auto get_printer(const io_mux_base<int, epoll_muxer<int>>& muxer,
 			struct sockaddr_un* peerAddr = reinterpret_cast<struct sockaddr_un*>(&lastpeer);
 
 			if (strcmp(buf, "exit") == 0) {
-				auto msg {"server_exit"};
-				int ret = sendto(sfd, msg, sizeof(msg), 0, (SOCKADDR *)peerAddr, sizeof(sockaddr_un));
+				auto msg {"server_exit\n"};
+				int ret = sendto(sfd, msg, strlen(msg), 0, (SOCKADDR *)peerAddr, sizeof(sockaddr_un));
 				listener_handle.close();
 				if (ret < 0)
 					exit(EXIT_FAILURE);
@@ -45,7 +45,7 @@ static auto get_printer(const io_mux_base<int, epoll_muxer<int>>& muxer,
 					exit(EXIT_SUCCESS);
 			}
 			std::cout << "serverbuf: " << buf << std::endl;
-			auto msg {"who somebody"};
+			auto msg {"whosomebody"};
 			if (sendto(sfd, msg, sizeof(msg), 0, (SOCKADDR *)peerAddr, sizeof(sockaddr_un)) == -1) {
 				std::cerr << "sending failed " << strerror(errno) << '\n';
 			}
@@ -54,7 +54,10 @@ static auto get_printer(const io_mux_base<int, epoll_muxer<int>>& muxer,
 
 int main(int argc, char *argv[])
 {
-	auto listener_handle { make_socket<AF_UNIX, SOCK_DGRAM>({.host = SRV_PATH}) };
+	if (argc < 2)
+		exit(EXIT_FAILURE);
+
+	auto listener_handle { make_socket<AF_UNIX, SOCK_DGRAM>({.host = argv[1]}) };
 	auto listener_fd { sockno(*listener_handle) };
 
 	auto muxer {make_muxer<SOCKET>()};

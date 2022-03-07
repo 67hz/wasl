@@ -2,7 +2,9 @@
 #include <wasl/SockStream.h>
 #include "test_helpers.h"
 
+#include <stdlib.h>
 #include <gsl/span>
+
 using namespace wasl::ip;
 
 int main(int argc, char **argv)
@@ -12,11 +14,17 @@ int main(int argc, char **argv)
 	Address_info serverAddrInfo;
 	serverAddrInfo.host = argv[1];
 
+	auto tmpSock = wasl::makeSocketPath();
+
+	std::cout <<  "tmpSock : " << tmpSock << '\n';
 	auto client {
 		wasl_socket<AF_UNIX, SOCK_DGRAM>::create()
+			->bind({tmpSock})
 			->connect (serverAddrInfo)
 			->build()
 	};
+
+	assert(client->sock_err == SockError::ERR_NONE);
 
 	char buf[BUFSIZ];
 	auto ss_cl { sdopen(sockno(*client)) };
@@ -24,10 +32,11 @@ int main(int argc, char **argv)
 
 	*ss_cl << SERVER_SHUTDOWN << std::endl;
 
-//	*ss_cl >> buf;
+	*ss_cl >> buf;
+//	recvfrom(sockno(*client), buf, BUFSIZ, 0, nullptr, 0);
 
 	// TODO send_fd and check response from server
-//	assert(strcmp(buf, "server_exit") == 0);
+	assert(strcmp(buf, "server_exit") == 0);
 
 
 

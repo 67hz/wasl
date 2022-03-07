@@ -54,7 +54,8 @@ TEST(IOMuxEpollingDatagram, CanDispatchEventDelegates) {
 	// register event on muxers main listening sfd
 	muxer->bind_event(listener_fd, printer);
 
-	auto c1 = create_child_runner(muxer.get(), listener_fd, CL_PATH, "first");
+	auto tmpSock = wasl::makeSocketPath();
+	auto c1 = create_child_runner(muxer.get(), listener_fd, tmpSock, "first");
 
 	auto listen_n = [&event_counter, mux = muxer.get()](int num_events) {
 		auto nfds = mux->listen();

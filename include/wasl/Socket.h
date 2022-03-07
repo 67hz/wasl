@@ -271,7 +271,9 @@ private:
 
 #ifdef SYS_API_LINUX
   void destroy(path_socket_tag) {
+#ifndef NDEBUG
 		std::cout << "\n\nunix destructor\n";
+#endif
     auto addr{as_address(*this)};
     if (addr->sun_path)
       remove(addr->sun_path);
