@@ -1,6 +1,7 @@
 #ifndef WASL_SOCKET_H
 #define WASL_SOCKET_H
 
+#include <cstdint>
 #include <wasl/Common.h>
 #include <wasl/Types.h>
 
@@ -27,14 +28,13 @@
 #include <unistd.h>
 #endif
 
-#ifndef WASL_LISTEN_BACKLOG
-#define WASL_LISTEN_BACKLOG 50
-#endif
+
 
 namespace wasl {
 namespace ip {
 
 using path_type = gsl::czstring<>;
+static constexpr int WASL_LISTEN_BACKLOG {50};
 
 struct Address_info {
   path_type host{nullptr};
@@ -87,7 +87,7 @@ namespace {
 int sockfd_to_family(SOCKET sfd) {
   struct sockaddr_storage addr {};
   socklen_t socklen = sizeof(addr);
-  if (getsockname(sfd, (sockaddr *)&addr, &socklen) < 0)
+  if (getsockname(sfd, reinterpret_cast<SOCKADDR *>(&addr), &socklen) < 0)
     return -1;
   return addr.ss_family;
 }
@@ -97,11 +97,11 @@ int sockfd_to_family(SOCKET sfd) {
 /// e.g., struct sockaddr_in.
 /// \return generic sockaddr_storage struct.
 struct sockaddr_storage get_address(SOCKET sfd) {
-  struct sockaddr_storage res;
+  struct sockaddr_storage res {};
   memset(&res, 0, sizeof(res));
   socklen_t socklen = sizeof(res);
 
-  getsockname(sfd, (SOCKADDR *)&res, &socklen);
+  getsockname(sfd, reinterpret_cast<SOCKADDR*>(&res), &socklen);
 
   return res;
 }
@@ -109,9 +109,9 @@ struct sockaddr_storage get_address(SOCKET sfd) {
 /// create AF_INET, AF_INET6 as DGRAMS or SOCK_STREAM
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 auto create_inet_address(Address_info info) {
-  struct addrinfo hints;
-  struct addrinfo *result;
-  int rc;
+  struct addrinfo hints {};
+  struct addrinfo *result {};
+  int rc = 0;
 
   memset(&hints, 0, sizeof(hints));
   // hints.ai_family = AF_INET;
@@ -134,14 +134,14 @@ auto create_inet_address(Address_info info) {
 }
 
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-typename traits::addr_type *create_address(Address_info info, inet_socket_tag) {
+gsl::owner<typename traits::addr_type*> create_address(Address_info info, inet_socket_tag) {
   return create_inet_address<Family, SocketType>(info);
 }
 
 #ifdef SYS_API_LINUX
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-typename traits::addr_type *create_address(Address_info info, path_socket_tag) {
-  struct sockaddr_un *addr = new sockaddr_un;
+gsl::owner<typename traits::addr_type *> create_address(Address_info info, path_socket_tag) {
+  gsl::owner<sockaddr_un*> addr = new sockaddr_un;
   addr->sun_family = AF_UNIX;
   assert((strlen(info.host) < sizeof(addr->sun_path) - 1));
 
@@ -163,7 +163,7 @@ SOCKET socket_connect(const wasl_socket<Family, Socket_Type> &node,
   }
 
   auto srv_addr = get_address(link);
-  return connect(sockno(node), (SOCKADDR *)&(srv_addr), len);
+  return connect(sockno(node), reinterpret_cast<SOCKADDR *>(&srv_addr), len);
 }
 
 template <int Family, int Socket_Type, typename traits = socket_traits<Family>,
@@ -216,7 +216,6 @@ public:
 
   // indicates where errors occur in build pipeline, clients should check
   // errno with GET_SOCKERRNO() to handle
-  SockError sock_err = SockError::ERR_NONE;
 
   void close() { this->destroy(typename traits::tag()); }
 
@@ -247,7 +246,7 @@ public:
   /// Get a pointer to the associated socket address struct
   inline friend constexpr std::unique_ptr<typename traits::addr_type>
   as_address(const wasl_socket &node) noexcept {
-    auto addr = new sockaddr_storage;
+	  gsl::owner<sockaddr_storage*> addr = new sockaddr_storage;
     *addr = get_address(node.sd);
     return std::unique_ptr<typename traits::addr_type>(
         reinterpret_cast<typename traits::addr_type *>(addr));
@@ -257,12 +256,17 @@ public:
     return !local::toUType(sock_err) && is_open(*this);
   }
 
+  inline constexpr SockError error() const {
+	  return sock_err;
+  }
+
   /// \return socket_builder instance
   static auto create() {
     return std::make_unique<socket_builder<wasl_socket<Family, SocketType>>>();
   }
 
 private:
+  SockError sock_err { SockError::ERR_NONE };
   SOCKET sd{INVALID_SOCKET}; // a socket descriptor
 
   friend socket_builder<wasl_socket<Family, SocketType>>;
@@ -347,7 +351,7 @@ public:
     if (info.reuse_addr) {
       int optval{1};
       if (setsockopt(asDerived()->sock->sd, SOL_SOCKET, SO_REUSEADDR,
-                     (const char *)&optval, sizeof(optval)) == -1)
+                     &optval, sizeof(optval)) == -1)
         asDerived()->sock->sock_err |= SockError::ERR_SOCKET_OPT;
     }
 

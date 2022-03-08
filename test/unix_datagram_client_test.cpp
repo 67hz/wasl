@@ -20,7 +20,7 @@ TEST(socket_client_unix_datagram, CanReceiveAndSendDataFromServer) {
 			->build()
 	};
 
-	EXPECT_EQ(client->sock_err, SockError::ERR_NONE);
+	EXPECT_EQ(client->error(), SockError::ERR_NONE);
 
 	auto ss { sdopen(sockno(*client)) };
 	*ss << "hello" << std::endl;

@@ -75,6 +75,9 @@ public:
     return handle_added;
   }
 
+  /// TODO
+//  bool remove(T fd) { }
+
 private:
   T _listener_fd; // fd for listener/acceptor
   std::set<T> _active_socket_list;

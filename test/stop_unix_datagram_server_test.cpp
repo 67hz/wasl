@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 			->build()
 	};
 
-	assert(client->sock_err == SockError::ERR_NONE);
+	assert(client->error() == SockError::ERR_NONE);
 
 	char buf[BUFSIZ];
 	auto ss_cl { sdopen(sockno(*client)) };

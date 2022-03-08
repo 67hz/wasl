@@ -16,7 +16,7 @@ TEST(socket_client_tcp, CanReceiveAndSendDataFromServer) {
 			->build()
 	};
 
-	EXPECT_EQ(client->sock_err, SockError::ERR_NONE);
+	EXPECT_EQ(client->error(), SockError::ERR_NONE);
 
 	char buf[BUFSIZ];
 	struct sockaddr_in addr;
