@@ -4,13 +4,13 @@
 #include <wasl/Common.h>
 #include <wasl/Types.h>
 
+#include <algorithm>
 #include <functional>
 #include <iterator>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 #ifdef SYS_API_LINUX
 #include <sys/epoll.h>
@@ -42,12 +42,14 @@ public:
   int listen() {
     // pull fds with ready input
     auto ready_fds = this->wait(_listener_fd);
-    for_each(ready_fds.begin(), ready_fds.end(), [eh = this->_event_handlers](auto fd) {
-        auto it = eh.find(fd);
-        if (it != eh.end()) {
-          it->second.second(fd, "iomux event triggered: " + it->second.first);
-        }
-    });
+    for_each(ready_fds.begin(), ready_fds.end(),
+             [eh = this->_event_handlers](auto fd) {
+               auto it = eh.find(fd);
+               if (it != eh.end()) {
+                 it->second.second(fd, "iomux event triggered: " +
+                                           it->second.first);
+               }
+             });
 
     return ready_fds.size();
   }
@@ -92,9 +94,7 @@ template <typename T> struct epoll_muxer<T, EnableIfPlatform<posix>> {
   /// create a new epoll instance.
   ///
   /// \return file descriptor for primary listening (epoll) socket
-  static T init() {
-    return epoll_create(event_max);
-  }
+  static T init() { return epoll_create(event_max); }
 
   static bool link_node(T poll_fd, T sfd) {
     struct epoll_event ev;
@@ -110,7 +110,7 @@ template <typename T> struct epoll_muxer<T, EnableIfPlatform<posix>> {
 
   /// \return vector of file descriptors
   static event_list wait(T poll_fd) {
-    struct epoll_event events[event_max] {};
+    struct epoll_event events[event_max]{};
     event_list ev_list;
     auto nr_events = epoll_wait(poll_fd, events, event_max, -1);
 
@@ -122,23 +122,22 @@ template <typename T> struct epoll_muxer<T, EnableIfPlatform<posix>> {
       if (ev_list.size() >= nr_events)
         return ev_list;
 
-
       if (ev.events & EPOLLIN)
-	      std::cout << "got input on: " << ev.data.fd << '\n';
+        std::cout << "got input on: " << ev.data.fd << '\n';
       if (ev.events & (EPOLLHUP | EPOLLERR)) { // TLPI 1363
-	      auto it = find(ev_list.begin(), ev_list.end(), ev.data.fd);
-	      if (it != ev_list.end()) {
-		      //swap(it, ev_list.back());
-		      //ev_list.pop_back();
-		      ev_list.erase(it);
-		      if (close(ev.data.fd) == -1)
-			      std::cerr << "Could not close fd:" << ev.data.fd;
-		      epoll_ctl(poll_fd, EPOLL_CTL_DEL, ev.data.fd, &ev);
-		      std::cout << "removing fd: " << ev.data.fd << std::endl;
-	      }
+        auto it = find(ev_list.begin(), ev_list.end(), ev.data.fd);
+        if (it != ev_list.end()) {
+          // swap(it, ev_list.back());
+          // ev_list.pop_back();
+          ev_list.erase(it);
+          if (close(ev.data.fd) == -1)
+            std::cerr << "Could not close fd:" << ev.data.fd;
+          epoll_ctl(poll_fd, EPOLL_CTL_DEL, ev.data.fd, &ev);
+          std::cout << "removing fd: " << ev.data.fd << std::endl;
+        }
       }
       if (ev.events & EPOLLRDHUP)
-	      std::cerr << "got epollrdhup";
+        std::cerr << "got epollrdhup";
       if (ev.data.fd > 0) {
         ev_list.push_back(ev.data.fd);
       }

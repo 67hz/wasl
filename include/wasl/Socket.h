@@ -218,9 +218,7 @@ public:
   // errno with GET_SOCKERRNO() to handle
   SockError sock_err = SockError::ERR_NONE;
 
-	void close() {
-		this->destroy(typename traits::tag());
-	}
+  void close() { this->destroy(typename traits::tag()); }
 
   ~wasl_socket() {
     destroy(typename traits::tag());
@@ -272,7 +270,7 @@ private:
 #ifdef SYS_API_LINUX
   void destroy(path_socket_tag) {
 #ifndef NDEBUG
-		std::cout << "\n\nunix destructor\n";
+    std::cout << "\n\nunix destructor\n";
 #endif
     auto addr{as_address(*this)};
     if (addr->sun_path)
@@ -341,9 +339,9 @@ public:
     auto addr = create_address<Derived::family, Derived::socket_type>(
         info, typename traits<Derived>::tag());
 
-    if (Derived::family == AF_LOCAL) {  // unix domain
-	  // remove any artifacts from socket invocation
-			remove(info.host);
+    if (Derived::family == AF_LOCAL) { // unix domain
+      // remove any artifacts from socket invocation
+      remove(info.host);
     }
 
     if (info.reuse_addr) {

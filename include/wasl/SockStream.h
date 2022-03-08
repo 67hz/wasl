@@ -20,9 +20,10 @@ namespace ip {
 template <typename PlatformType> struct basic_sockio {
   static constexpr int BUFLEN = BUFSIZ;
 
-	// read until NL or BUFLEN is reached
-  static ssize_t rv_recv(SOCKET sfd, char *buf, size_t buf_len, sockaddr_storage *peer_addr, int flags = 0) {
-    socklen_t peer_addr_len { sizeof(*peer_addr) };
+  // read until NL or BUFLEN is reached
+  static ssize_t rv_recv(SOCKET sfd, char *buf, size_t buf_len,
+                         sockaddr_storage *peer_addr, int flags = 0) {
+    socklen_t peer_addr_len{sizeof(*peer_addr)};
 
     ssize_t n_read = recvfrom(sfd, buf, buf_len, flags, (SOCKADDR *)peer_addr,
                               &peer_addr_len);
@@ -115,8 +116,9 @@ protected:
     memmove(m_in_buffer + (PUTBACK_BUFSZ - numPutback), gptr() - numPutback,
             numPutback);
 
-    int num = SockIO::rv_recv(m_sockFD, m_in_buffer + PUTBACK_BUFSZ,
-                              SockIO::BUFLEN - PUTBACK_BUFSZ, &last_peer_addr, 0);
+    int num =
+        SockIO::rv_recv(m_sockFD, m_in_buffer + PUTBACK_BUFSZ,
+                        SockIO::BUFLEN - PUTBACK_BUFSZ, &last_peer_addr, 0);
 
     if (num <= 0) {
       return std::char_traits<char>::eof();
