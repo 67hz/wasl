@@ -180,10 +180,10 @@ public:
   /// Get a sockstream's underlying socket descriptor
   /// \see fileno()
   inline friend SOCKET sockno(const sockstream &sock) {
-    if (sock)
-      return sock._sd();
-    else
+    if (!sock)
       return INVALID_SOCKET;
+
+    return sock._sd();
   }
 
   buf_type *rdbuf() const { return m_sockbuf.get(); }

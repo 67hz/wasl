@@ -4,7 +4,7 @@ project(wasl VERSION 0.2.0 LANGUAGES CXX)
 include(CMakePrintHelpers)
 include(FetchContent)
 
-set(CMAKE_CXX_CLANG_TIDY clang-tidy --header-filter='[^gtest*]' -checks=-*,clang-analyzer-*,clang-analyzer-cplusplus-*,cppcoreguidelines-*,llvm-*)
+set(CMAKE_CXX_CLANG_TIDY clang-tidy --header-filter='[*gtest*|*gmock*]' -checks=-*,clang-analyzer-*,clang-analyzer-cplusplus-*,cppcoreguidelines-*,llvm-*)
 
 cmake_print_variables(SRC_DIR)
 cmake_print_variables(PROJECT_SOURCE_DIR)
@@ -123,9 +123,8 @@ if (CMAKE_BUILD_TYPE MATCHES "^[Dd]ebug") # temp disabled
 
 	if (CLANG_TIDY)
 	add_custom_target(
-			clang-tidy ALL
+			clang-tidy wasl
 			COMMAND ${CMAKE_CXX_CLANG_TIDY}
-			#	${wasl_sources}
 			${wasl_headers}
 		)
 	endif()
