@@ -5,6 +5,7 @@
 #include <vector>
 #include <thread>
 #include <gsl/string_span> // czstring
+#include <gsl/pointers>
 
 
 #define SRV_PATH "/tmp/wasl_srv"
@@ -32,13 +33,13 @@ namespace wasl {
 
 static constexpr const char* SOCK_TEMPLATE {"/tmp/wasl.XXXXXX"};
 
-const char* makeSocketPath() {
-	char tmpSock[strlen(wasl::SOCK_TEMPLATE)+1];
-	strncpy(tmpSock, wasl::SOCK_TEMPLATE, sizeof(tmpSock));
+/**
+ * Generate a path in /tmp
+ */
+gsl::owner<gsl::zstring<>> makeSocketPath() {
+	auto tmpSock = strdup(SOCK_TEMPLATE);
 	mkstemp(tmpSock);
-	std::ostringstream os;
-	os << tmpSock;
-	return os.str().c_str();
+	return tmpSock;
 }
 
 

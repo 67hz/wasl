@@ -2,6 +2,7 @@
 #define WASL_SOCKET_H
 
 #include <cstdint>
+#include <ostream>
 #include <wasl/Common.h>
 #include <wasl/Types.h>
 
@@ -96,7 +97,6 @@ int sockfd_to_family(SOCKET sfd) {
 /// \return generic sockaddr_storage struct.
 struct sockaddr_storage get_address(SOCKET sfd) {
   struct sockaddr_storage res {};
-  memset(&res, 0, sizeof(res));
   socklen_t socklen = sizeof(res);
 
   getsockname(sfd, reinterpret_cast<SOCKADDR *>(&res), &socklen);
@@ -126,26 +126,27 @@ auto create_inet_address(Address_info info) {
     std::cout << "getaddrinfo failed: " << gai_strerror(rc) << '\n';
   }
 
-  auto addr = reinterpret_cast<typename traits::addr_type *>(result->ai_addr);
-  //		freeaddrinfo(result);
+  // TODO scan all results
+  typename traits::addr_type addr =
+      *(reinterpret_cast<typename traits::addr_type *>(result[0].ai_addr));
+  freeaddrinfo(result);
   return addr;
 }
 
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-gsl::owner<typename traits::addr_type *> create_address(Address_info info,
-                                                        inet_socket_tag) {
+typename traits::addr_type create_address(Address_info info, inet_socket_tag) {
   return create_inet_address<Family, SocketType>(info);
 }
 
 #ifdef SYS_API_LINUX
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-gsl::owner<typename traits::addr_type *> create_address(Address_info info,
-                                                        path_socket_tag) {
-  gsl::owner<sockaddr_un *> addr = new sockaddr_un;
-  addr->sun_family = AF_UNIX;
-  assert((strlen(info.host) < sizeof(addr->sun_path) - 1));
+typename traits::addr_type create_address(Address_info info, path_socket_tag) {
+  //  gsl::owner<sockaddr_un *> addr = new sockaddr_un;
+  struct sockaddr_un addr;
+  addr.sun_family = AF_UNIX;
+  assert((strlen(info.host) < sizeof(addr.sun_path) - 1));
 
-  strncpy(addr->sun_path, info.host, sizeof(addr->sun_path) - 1);
+  strncpy(addr.sun_path, info.host, sizeof(addr.sun_path) - 1);
   return addr;
 }
 #endif
@@ -175,7 +176,7 @@ SOCKET socket_connect(const wasl_socket<Family, Socket_Type> &node,
       create_address<Family, Socket_Type>(info, typename traits::tag());
 
   return (::connect(sockno(node),
-                    reinterpret_cast<struct sockaddr *>(peer_addr),
+                    reinterpret_cast<struct sockaddr *>(&peer_addr),
                     sizeof(typename traits::addr_type)));
 }
 
@@ -250,10 +251,21 @@ public:
     *addr = get_address(node.sd);
     return std::unique_ptr<typename traits::addr_type>(
         reinterpret_cast<typename traits::addr_type *>(addr));
+
   }
 
   explicit operator bool() const {
     return !local::toUType(sock_err) && is_open(*this);
+  }
+
+  inline friend constexpr bool operator==(const wasl_socket &lhs,
+                                          const wasl_socket &rhs) {
+    return lhs.sd == rhs.sd;
+  }
+
+  inline friend constexpr bool operator!=(const wasl_socket &lhs,
+                                          const wasl_socket &rhs) {
+    return !(lhs.sd == rhs.sd);
   }
 
   inline constexpr SockError error() const { return sock_err; }
@@ -354,7 +366,7 @@ public:
     }
 
     if (::bind(sockno(*(asDerived()->sock)),
-               reinterpret_cast<struct sockaddr *>(addr),
+               reinterpret_cast<struct sockaddr *>(&addr),
                sizeof(typename traits<Derived>::addr_type)) == -1) {
 
       asDerived()->sock->sock_err |= SockError::ERR_BIND;

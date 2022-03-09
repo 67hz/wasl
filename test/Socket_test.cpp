@@ -1,3 +1,7 @@
+#include <algorithm>
+#include <iostream>
+#include <locale>
+#include <sys/socket.h>
 #include <wasl/Socket.h>
 #include <string>
 #include <memory>
@@ -22,25 +26,17 @@ using wasl::local::toUType;
 using socket_tcp = wasl_socket<AF_INET, SOCK_STREAM>;
 using socket_udp = wasl_socket<AF_INET, SOCK_DGRAM>;
 
-TEST(socket_utils, GetAddressFromSocketDescriptor) {
-	std::unique_ptr<socket_tcp> sock { socket_tcp::
-		create()->bind({HOST, SERVICE})->build() };
-	auto addr = get_address(sockno(*sock));
-	in_addr ip;
-	auto res = inet_pton(AF_INET, HOST, &ip);
-	auto SA = as_address(*sock);
-	ASSERT_EQ(ip.s_addr, SA->sin_addr.s_addr);
-	auto res_sockaddr = reinterpret_cast<struct sockaddr_in*>(&addr);
-	ASSERT_EQ(res_sockaddr->sin_port, SA->sin_port);
+TEST(wasl_socket, IsComparable) {
+	gsl::owner<gsl::zstring<>> tmpSock1 = wasl::makeSocketPath();
+	gsl::owner<gsl::zstring<>> tmpSock2 = wasl::makeSocketPath();
 
-	// convert addresses back to text form and check string equality
-  char res_nwbuf[INET_ADDRSTRLEN];
-  char nwbuf[INET_ADDRSTRLEN];
-	auto res_nwaddr =inet_ntop(AF_INET, &(res_sockaddr->sin_addr), res_nwbuf, INET_ADDRSTRLEN);
-	auto nw_addr = inet_ntop(AF_INET, &(SA->sin_addr), nwbuf, INET_ADDRSTRLEN);
-	ASSERT_STREQ(res_nwbuf, nwbuf);
+	ASSERT_STRNE(tmpSock1, tmpSock2);
+	auto client { make_socket<AF_UNIX, SOCK_DGRAM>({.host = tmpSock1}) };
+	auto other_client = make_socket<AF_UNIX, SOCK_DGRAM>({.host=tmpSock2});
+	ASSERT_TRUE(*client != *other_client);
+
+	delete []tmpSock1;
 }
-
 
 TEST(socket_utils, GetStreamSocketFamilyFromSocketDescriptor) {
 	auto sock_tcp { socket_tcp::
@@ -114,6 +110,7 @@ TEST(socket_builder_unix_domain, MakeHelperUnixDomainStream) {
 	assert_sock_path_exists(srv_path);
 }
 
+#if 0
 TEST(unix_domain_sockets_datagram, CanReadAndWrite) {
 	char msg[]= "some_message";
 	auto srvUP { make_socket<AF_LOCAL, SOCK_DGRAM>({.host = srv_path}) };
@@ -137,7 +134,9 @@ TEST(unix_domain_sockets_datagram, CanReadAndWrite) {
 			std::cerr << strerror(errno) << '\n';
 	});
 }
+#endif
 
+#if 0
 TEST(unix_domain_sockets_stream, CanReadAndWrite) {
 	char msg[]= "some_message";
 	auto srvUP { make_socket<AF_LOCAL, SOCK_STREAM>({.host = srv_path}) };
@@ -168,6 +167,8 @@ TEST(unix_domain_sockets_stream, CanReadAndWrite) {
 			std::cerr << "write error: " << strerror(errno) << '\n';
 	});
 }
+#endif
+
 #endif
 
 

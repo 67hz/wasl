@@ -137,8 +137,8 @@ protected:
 private:
   SOCKET m_sockFD;
   sockaddr_storage last_peer_addr;
-  char_type m_in_buffer[SockIO::BUFLEN];
-  char_type m_out_buffer[SockIO::BUFLEN];
+  char_type m_in_buffer[SockIO::BUFLEN]{};
+  char_type m_out_buffer[SockIO::BUFLEN]{};
 
   /// number of chars allowed in putback buffer
   constexpr static int PUTBACK_BUFSZ = 4;
