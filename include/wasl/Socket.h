@@ -28,13 +28,11 @@
 #include <unistd.h>
 #endif
 
-
-
 namespace wasl {
 namespace ip {
 
 using path_type = gsl::czstring<>;
-static constexpr int WASL_LISTEN_BACKLOG {50};
+static constexpr int WASL_LISTEN_BACKLOG{50};
 
 struct Address_info {
   path_type host{nullptr};
@@ -101,7 +99,7 @@ struct sockaddr_storage get_address(SOCKET sfd) {
   memset(&res, 0, sizeof(res));
   socklen_t socklen = sizeof(res);
 
-  getsockname(sfd, reinterpret_cast<SOCKADDR*>(&res), &socklen);
+  getsockname(sfd, reinterpret_cast<SOCKADDR *>(&res), &socklen);
 
   return res;
 }
@@ -110,7 +108,7 @@ struct sockaddr_storage get_address(SOCKET sfd) {
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 auto create_inet_address(Address_info info) {
   struct addrinfo hints {};
-  struct addrinfo *result {};
+  struct addrinfo *result{};
   int rc = 0;
 
   memset(&hints, 0, sizeof(hints));
@@ -134,14 +132,16 @@ auto create_inet_address(Address_info info) {
 }
 
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-gsl::owner<typename traits::addr_type*> create_address(Address_info info, inet_socket_tag) {
+gsl::owner<typename traits::addr_type *> create_address(Address_info info,
+                                                        inet_socket_tag) {
   return create_inet_address<Family, SocketType>(info);
 }
 
 #ifdef SYS_API_LINUX
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
-gsl::owner<typename traits::addr_type *> create_address(Address_info info, path_socket_tag) {
-  gsl::owner<sockaddr_un*> addr = new sockaddr_un;
+gsl::owner<typename traits::addr_type *> create_address(Address_info info,
+                                                        path_socket_tag) {
+  gsl::owner<sockaddr_un *> addr = new sockaddr_un;
   addr->sun_family = AF_UNIX;
   assert((strlen(info.host) < sizeof(addr->sun_path) - 1));
 
@@ -157,7 +157,7 @@ template <int Family, int Socket_Type,
           EnableIfSocketType<typename socket_traits<Family>::addr_type> = true,
           socklen_t len = sizeof(typename socket_traits<Family>::addr_type)>
 SOCKET socket_connect(const wasl_socket<Family, Socket_Type> &node,
-                      SOCKET link) {
+                      const SOCKET link) {
   if (!is_valid_socket(sockno(node))) {
     return INVALID_SOCKET;
   }
@@ -170,7 +170,7 @@ template <int Family, int Socket_Type, typename traits = socket_traits<Family>,
           EnableIfSocketType<typename traits::addr_type> = true,
           socklen_t len = sizeof(typename traits::addr_type)>
 SOCKET socket_connect(const wasl_socket<Family, Socket_Type> &node,
-                      Address_info info) {
+                      const Address_info info) {
   auto peer_addr =
       create_address<Family, Socket_Type>(info, typename traits::tag());
 
@@ -246,7 +246,7 @@ public:
   /// Get a pointer to the associated socket address struct
   inline friend constexpr std::unique_ptr<typename traits::addr_type>
   as_address(const wasl_socket &node) noexcept {
-	  gsl::owner<sockaddr_storage*> addr = new sockaddr_storage;
+    gsl::owner<sockaddr_storage *> addr = new sockaddr_storage;
     *addr = get_address(node.sd);
     return std::unique_ptr<typename traits::addr_type>(
         reinterpret_cast<typename traits::addr_type *>(addr));
@@ -256,9 +256,7 @@ public:
     return !local::toUType(sock_err) && is_open(*this);
   }
 
-  inline constexpr SockError error() const {
-	  return sock_err;
-  }
+  inline constexpr SockError error() const { return sock_err; }
 
   /// \return socket_builder instance
   static auto create() {
@@ -266,7 +264,7 @@ public:
   }
 
 private:
-  SockError sock_err { SockError::ERR_NONE };
+  SockError sock_err{SockError::ERR_NONE};
   SOCKET sd{INVALID_SOCKET}; // a socket descriptor
 
   friend socket_builder<wasl_socket<Family, SocketType>>;
@@ -350,8 +348,8 @@ public:
 
     if (info.reuse_addr) {
       int optval{1};
-      if (setsockopt(asDerived()->sock->sd, SOL_SOCKET, SO_REUSEADDR,
-                     &optval, sizeof(optval)) == -1)
+      if (setsockopt(asDerived()->sock->sd, SOL_SOCKET, SO_REUSEADDR, &optval,
+                     sizeof(optval)) == -1)
         asDerived()->sock->sock_err |= SockError::ERR_SOCKET_OPT;
     }
 
@@ -409,6 +407,8 @@ template <int Family, int SocketType,
           EnableIfSocketType<typename socket_traits<Family>::addr_type> = true>
 std::unique_ptr<wasl_socket<Family, SocketType>>
 make_socket(Address_info info) {
+  static_assert((SocketType & (SOCK_STREAM | SOCK_DGRAM | SOCK_RAW)) != 0,
+                "invalid socket type");
   auto socket{wasl_socket<Family, SocketType>::create()->bind(info)->build()};
 
 #ifndef NDEBUG
