@@ -107,11 +107,11 @@ export(EXPORT wasl-targets
 # Register package in the User Package Registry
 export(PACKAGE Wasl)
 
-option(BUILD_TESTING "Build unit tests" ON)
-if (BUILD_TESTING AND ${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
-  enable_testing()
-	include(CTest)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+  include(CTest) # calls enable_testing()
+  if (BUILD_TESTING)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+  endif()
 endif()
 
 file(GLOB wasl_headers CONFIGURE_DEPENDS "${path_to_headers}/wasl/*.h")
