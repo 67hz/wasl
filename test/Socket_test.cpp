@@ -27,15 +27,14 @@ using socket_tcp = wasl_socket<AF_INET, SOCK_STREAM>;
 using socket_udp = wasl_socket<AF_INET, SOCK_DGRAM>;
 
 TEST(wasl_socket, IsComparable) {
-	gsl::owner<gsl::zstring<>> tmpSock1 = wasl::makeSocketPath();
-	gsl::owner<gsl::zstring<>> tmpSock2 = wasl::makeSocketPath();
+	auto tmpSock1 = wasl::makeSocketPath();
+	auto tmpSock2 = wasl::makeSocketPath();
 
-	ASSERT_STRNE(tmpSock1, tmpSock2);
-	auto client { make_socket<AF_UNIX, SOCK_DGRAM>({.host = tmpSock1}) };
-	auto other_client = make_socket<AF_UNIX, SOCK_DGRAM>({.host=tmpSock2});
+
+	ASSERT_STRNE(tmpSock1.c_str(), tmpSock2.c_str());
+	auto client = make_socket<AF_UNIX, SOCK_DGRAM>({.host=tmpSock1.c_str()});
+	auto other_client = make_socket<AF_UNIX, SOCK_DGRAM>({.host=tmpSock2.c_str()});
 	ASSERT_TRUE(*client != *other_client);
-
-	delete []tmpSock1;
 }
 
 TEST(socket_utils, GetStreamSocketFamilyFromSocketDescriptor) {

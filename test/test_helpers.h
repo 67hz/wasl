@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <sstream>
 #ifndef WASL_TEST_HELPERS_H
 #include <wasl/Common.h>
@@ -15,6 +16,10 @@
 #define SERVICE "9877"
 #define SERVER_SHUTDOWN "exit"
 
+#ifndef SOCK_TEMPLATE
+#define SOCK_TEMPLATE "/tmp/wasl.XXXXXX"
+#endif
+
 #if defined(SYS_API_WIN32)
 #include <Windows.h>
 #include <strsafe.h>
@@ -31,15 +36,22 @@
 
 namespace wasl {
 
-static constexpr const char* SOCK_TEMPLATE {"/tmp/wasl.XXXXXX"};
+
 
 /**
- * Generate a path in /tmp
+ * Generate a file path in /tmp
  */
-gsl::owner<gsl::zstring<>> makeSocketPath() {
+std::string makeSocketPath() {
 	auto tmpSock = strdup(SOCK_TEMPLATE);
-	mkstemp(tmpSock);
-	return tmpSock;
+	auto fd = mkstemp(tmpSock);
+
+	// Only the path name is needed so close the open descriptor. It will be
+	// removed and bound by a socket.
+	close(fd);
+
+	std::string str = tmpSock;
+	delete [] tmpSock;
+	return str;
 }
 
 

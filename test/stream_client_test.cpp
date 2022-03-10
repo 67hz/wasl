@@ -56,5 +56,4 @@ TEST(socket_client_tcp, CanReceiveAndSendDataFromServer) {
 
 	*ss_cl >> buf;
 	ASSERT_STREQ(buf, msg);
-
 }

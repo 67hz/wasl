@@ -37,7 +37,7 @@ static auto get_printer(const io_mux_base<int, epoll_muxer<int>>& muxer,
 
 			if (strcmp(buf, "exit") == 0) {
 				auto msg {"server_exit\n"};
-				int ret = sendto(sfd, msg, strlen(msg), 0, (SOCKADDR *)peerAddr, sizeof(sockaddr_un));
+				int ret = sendto(sfd, msg, strlen(msg) + 1, 0, (SOCKADDR *)peerAddr, sizeof(sockaddr_un));
 				listener_handle.close();
 				if (ret < 0)
 					exit(EXIT_FAILURE);

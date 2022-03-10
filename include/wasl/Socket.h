@@ -141,7 +141,6 @@ typename traits::addr_type create_address(Address_info info, inet_socket_tag) {
 #ifdef SYS_API_LINUX
 template <int Family, int SocketType, typename traits = socket_traits<Family>>
 typename traits::addr_type create_address(Address_info info, path_socket_tag) {
-  //  gsl::owner<sockaddr_un *> addr = new sockaddr_un;
   struct sockaddr_un addr;
   addr.sun_family = AF_UNIX;
   assert((strlen(info.host) < sizeof(addr.sun_path) - 1));
@@ -278,8 +277,22 @@ public:
 private:
   SockError sock_err{SockError::ERR_NONE};
   SOCKET sd{INVALID_SOCKET}; // a socket descriptor
+#ifdef SYS_API_WIN32
+  WSAData wsaData;
+#endif
 
   friend socket_builder<wasl_socket<Family, SocketType>>;
+
+  template <typename B> friend class socket_builder_base;
+
+  /// Construction is enforced through socket_builder to ensure valid
+  /// initialization of sockets.
+  wasl_socket() {
+#ifdef SYS_API_WIN32
+    auto iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    assert(iResult == 0);
+#endif
+  }
 
 #ifdef SYS_API_LINUX
   void destroy(path_socket_tag) {
@@ -301,21 +314,6 @@ private:
       closesocket(sd);
     }
   }
-
-  template <typename B> friend class socket_builder_base;
-
-#ifdef SYS_API_WIN32
-  WSAData wsaData;
-#endif
-
-  /// Construction is enforced through socket_builder to ensure valid
-  /// initialization of sockets.
-  wasl_socket() {
-#ifdef SYS_API_WIN32
-    auto iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    assert(iResult == 0);
-#endif
-  }
 };
 
 template <typename Derived> class socket_builder_base {
@@ -329,11 +327,6 @@ template <typename Derived> class socket_builder_base {
 
 public:
   socket_builder_base() = default;
-
-#if 0
-	Derived& asDerived() { return *static_cast<Derived*>(this); }
-	Derived const& asDerived() const { return *static_cast<Derived const*>(this); }
-#endif
 
   Derived *connect(Address_info peer_info) {
     if (socket_connect(*(asDerived()->sock), peer_info) == -1) {
@@ -399,9 +392,6 @@ struct socket_builder : public socket_builder_base<socket_builder<SocketNode>> {
   std::unique_ptr<SocketNode> sock;
 
   socket_builder() : sock{new SocketNode} { this->socket(); }
-
-  // TODO reenable in partially specialized inet (TCP) builder
-  // socket_builder *listen ();
 
   std::unique_ptr<SocketNode> build() { return std::move(sock); }
 };
