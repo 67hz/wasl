@@ -13,12 +13,8 @@ TEST(socket_client_unix_datagram, CanReceiveAndSendDataFromServer) {
 	Address_info addr_info;
 	addr_info.host = SRV_PATH;
 	auto tmpSock = wasl::makeSocketPath();
-	auto client {
-		wasl_socket<AF_UNIX, SOCK_DGRAM>::create()
-			->bind({.host = tmpSock})
-			->connect (addr_info)
-			->build()
-	};
+  auto client { make_socket<AF_UNIX, SOCK_DGRAM>({tmpSock.c_str()}) };
+  client->connect(addr_info);
 
 	EXPECT_EQ(client->error(), SockError::ERR_NONE);
 

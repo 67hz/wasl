@@ -17,19 +17,15 @@ int main(int argc, char **argv)
 	auto tmpSock = wasl::makeSocketPath();
 
 	std::cout <<  "tmpSock : " << tmpSock << '\n';
-	auto client {
-		wasl_socket<AF_UNIX, SOCK_DGRAM>::create()
-			->bind({tmpSock})
-			->connect (serverAddrInfo)
-			->build()
-	};
+
+  auto client { make_socket<AF_UNIX, SOCK_DGRAM>({tmpSock.c_str()})};
+  client->connect(serverAddrInfo);
 
 	assert(client->error() == SockError::ERR_NONE);
 
 	char buf[BUFSIZ];
 	auto ss_cl { sdopen(sockno(*client)) };
 	assert(is_valid_socket(sockno(*client)));
-
 	*ss_cl << SERVER_SHUTDOWN << std::endl;
 
 	*ss_cl >> buf;

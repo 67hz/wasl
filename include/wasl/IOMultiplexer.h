@@ -113,7 +113,7 @@ template <typename T> struct epoll_muxer<T, EnableIfPlatform<posix>> {
 
   /// \return vector of file descriptors
   static event_list wait(T poll_fd) {
-    struct epoll_event events[event_max] {};
+    struct epoll_event events[event_max]{};
     event_list ev_list;
     auto nr_events = epoll_wait(poll_fd, events, event_max, -1);
 

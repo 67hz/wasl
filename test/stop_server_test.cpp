@@ -14,11 +14,8 @@ int main(int argc, char **argv)
 	serverAddrInfo.host = argv[1];
 	serverAddrInfo.service = argv[2];
 
-	auto client {
-		wasl_socket<AF_INET, SOCK_STREAM>::create()
-			->connect (serverAddrInfo)
-			->build()
-	};
+  auto client { std::make_unique<wasl_socket<AF_INET, SOCK_STREAM>>() };
+  client->connect(serverAddrInfo);
 
 	char buf[BUFSIZ];
 	struct sockaddr_in addr;

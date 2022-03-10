@@ -36,8 +36,6 @@
 
 namespace wasl {
 
-
-
 /**
  * Generate a file path in /tmp
  */
@@ -45,8 +43,8 @@ std::string makeSocketPath() {
 	auto tmpSock = strdup(SOCK_TEMPLATE);
 	auto fd = mkstemp(tmpSock);
 
-	// Only the path name is needed so close the open descriptor. It will be
-	// removed and bound by a socket.
+	// Only the path name is needed so the open descriptor is closed. This
+	// path will be removed and bound by a wasl_socket<>.
 	close(fd);
 
 	std::string str = tmpSock;

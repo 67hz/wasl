@@ -214,8 +214,47 @@ public:
   using traits = socket_traits<Family>;
   constexpr static int socket_type = SocketType;
 
-  // indicates where errors occur in build pipeline, clients should check
-  // errno with GET_SOCKERRNO() to handle
+  wasl_socket() {
+#ifdef SYS_API_WIN32
+    auto iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    assert(iResult == 0);
+#endif
+
+    sd = ::socket(Family, SocketType, 0);
+
+    if (!is_valid_socket(sd))
+      sock_err |= SockError::ERR_SOCKET;
+  }
+
+  wasl_socket &bind(Address_info info) {
+    auto addr =
+        create_address<Family, SocketType>(info, typename traits::tag());
+
+    if (Family == AF_LOCAL) { // unix domain
+      // remove any artifacts from socket invocation
+      remove(info.host);
+    }
+
+    if (info.reuse_addr) {
+      int optval{1};
+      if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) ==
+          -1)
+        sock_err |= SockError::ERR_SOCKET_OPT;
+    }
+
+    if (::bind(sd, reinterpret_cast<struct sockaddr *>(&addr),
+               sizeof(typename traits::addr_type)) == -1) {
+      sock_err |= SockError::ERR_BIND;
+    }
+    return *this;
+  }
+
+  wasl_socket &connect(Address_info peer_info) {
+    if (socket_connect(*this, peer_info) == -1) {
+      sock_err |= SockError::ERR_CONNECT;
+    }
+    return *this;
+  }
 
   void close() { this->destroy(typename traits::tag()); }
 
@@ -250,7 +289,6 @@ public:
     *addr = get_address(node.sd);
     return std::unique_ptr<typename traits::addr_type>(
         reinterpret_cast<typename traits::addr_type *>(addr));
-
   }
 
   explicit operator bool() const {
@@ -269,11 +307,6 @@ public:
 
   inline constexpr SockError error() const { return sock_err; }
 
-  /// \return socket_builder instance
-  static auto create() {
-    return std::make_unique<socket_builder<wasl_socket<Family, SocketType>>>();
-  }
-
 private:
   SockError sock_err{SockError::ERR_NONE};
   SOCKET sd{INVALID_SOCKET}; // a socket descriptor
@@ -284,15 +317,6 @@ private:
   friend socket_builder<wasl_socket<Family, SocketType>>;
 
   template <typename B> friend class socket_builder_base;
-
-  /// Construction is enforced through socket_builder to ensure valid
-  /// initialization of sockets.
-  wasl_socket() {
-#ifdef SYS_API_WIN32
-    auto iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    assert(iResult == 0);
-#endif
-  }
 
 #ifdef SYS_API_LINUX
   void destroy(path_socket_tag) {
@@ -316,86 +340,6 @@ private:
   }
 };
 
-template <typename Derived> class socket_builder_base {
-
-  // make alias type dependent on Derived to avoid compiler throwing incomplete
-  // struct error
-  // see accessing child types in c++ using crtp
-  template <typename D = Derived> using traits = typename D::traits;
-
-  template <typename D = Derived> using node = typename D::node;
-
-public:
-  socket_builder_base() = default;
-
-  Derived *connect(Address_info peer_info) {
-    if (socket_connect(*(asDerived()->sock), peer_info) == -1) {
-      asDerived()->sock->sock_err |= SockError::ERR_CONNECT;
-    }
-    return asDerived();
-  }
-
-  Derived *connect(SOCKET link) {
-    if (socket_connect(*(asDerived()->sock), link) == -1) {
-      asDerived()->sock->sock_err |= SockError::ERR_CONNECT;
-    }
-    return asDerived();
-  }
-
-  Derived *bind(Address_info info) {
-    auto addr = create_address<Derived::family, Derived::socket_type>(
-        info, typename traits<Derived>::tag());
-
-    if (Derived::family == AF_LOCAL) { // unix domain
-      // remove any artifacts from socket invocation
-      remove(info.host);
-    }
-
-    if (info.reuse_addr) {
-      int optval{1};
-      if (setsockopt(asDerived()->sock->sd, SOL_SOCKET, SO_REUSEADDR, &optval,
-                     sizeof(optval)) == -1)
-        asDerived()->sock->sock_err |= SockError::ERR_SOCKET_OPT;
-    }
-
-    if (::bind(sockno(*(asDerived()->sock)),
-               reinterpret_cast<struct sockaddr *>(&addr),
-               sizeof(typename traits<Derived>::addr_type)) == -1) {
-
-      asDerived()->sock->sock_err |= SockError::ERR_BIND;
-    }
-
-    return asDerived();
-  }
-
-protected:
-  void socket() {
-    asDerived()->sock->sd = ::socket(Derived::family, Derived::socket_type, 0);
-
-    if (!is_valid_socket(asDerived()->sock->sd))
-      asDerived()->sock->sock_err |= SockError::ERR_SOCKET;
-  }
-
-private:
-  Derived *asDerived() { return static_cast<Derived *>(this); }
-};
-
-/// Primary socket builder builds TCP sockets
-/// \tparam IsTCP defaults to void for non-datagrams
-template <typename SocketNode>
-struct socket_builder : public socket_builder_base<socket_builder<SocketNode>> {
-  using traits = typename SocketNode::traits;
-  static constexpr int socket_type = SocketNode::socket_type;
-  static constexpr int family = traits::value;
-  using node = SocketNode;
-
-  std::unique_ptr<SocketNode> sock;
-
-  socket_builder() : sock{new SocketNode} { this->socket(); }
-
-  std::unique_ptr<SocketNode> build() { return std::move(sock); }
-};
-
 /// Make a unique_ptr to a wasl_socket
 /// TODO add overloads for:
 /// passive_opens (e.g., TCP servers) adding listen() to builder chain
@@ -404,22 +348,22 @@ struct socket_builder : public socket_builder_base<socket_builder<SocketNode>> {
 /// \tparam Family Any of AF_INET, AF_INET6, SOCKADDR_UN
 /// \tparam SocketType socket type used in socket() call
 /// e.g.: {SOCK_STREAM, SOCK_DGRAM, SOCK_RAW, ...}
-/// inet sockets maker
 template <int Family, int SocketType,
           EnableIfSocketType<typename socket_traits<Family>::addr_type> = true>
 std::unique_ptr<wasl_socket<Family, SocketType>>
 make_socket(Address_info info) {
   static_assert((SocketType & (SOCK_STREAM | SOCK_DGRAM | SOCK_RAW)) != 0,
                 "invalid socket type");
-  auto socket{wasl_socket<Family, SocketType>::create()->bind(info)->build()};
+  auto sock{std::make_unique<wasl_socket<Family, SocketType>>()};
+  sock->bind(info);
 
 #ifndef NDEBUG
-  if (!socket) {
+  if (!sock) {
     // std::cerr << strerror (GET_SOCKERRNO ()) << '\n';
   }
 #endif
 
-  return std::unique_ptr<wasl_socket<Family, SocketType>>(std::move(socket));
+  return std::move(sock);
 }
 
 template <int Family, int SocketType,

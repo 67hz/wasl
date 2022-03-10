@@ -38,8 +38,7 @@ TEST(wasl_socket, IsComparable) {
 }
 
 TEST(socket_utils, GetStreamSocketFamilyFromSocketDescriptor) {
-	auto sock_tcp { socket_tcp::
-		create()->bind({SERVICE})->build() };
+	auto sock_tcp { make_socket<AF_INET, SOCK_DGRAM>({HOST, SERVICE})};
 	auto family = sockfd_to_family(sockno(*sock_tcp));
 	ASSERT_EQ(family, AF_INET);
 }
@@ -67,15 +66,13 @@ static void assert_sock_path_exists(gsl::czstring<> sock_path) {
 }
 
 TEST(socket_utils, GetUnixSocketFamilyFromSocketDescriptor) {
-	auto sock_unix { socket_local_stream::
-		create()->bind({.host = srv_path})->build() };
+	auto sock_unix { make_socket<AF_UNIX, SOCK_DGRAM>({.host = srv_path})};
 	auto family = sockfd_to_family(sockno(*sock_unix));
 	ASSERT_EQ(family, AF_UNIX);
 }
 
 TEST(socket_builder_unix_domain, CanBuildUnixDomainDatagram) {
-	std::unique_ptr<socket_local_dgram> sock { socket_local_dgram::
-		create()->bind({.host = srv_path})->build() };
+	auto sock { make_socket<AF_UNIX, SOCK_DGRAM>({.host = srv_path})};
 
 	ASSERT_TRUE(is_open(*sock));
 	ASSERT_NE(sockno(*sock), INVALID_SOCKET);
@@ -86,8 +83,7 @@ TEST(socket_builder_unix_domain, CanBuildUnixDomainDatagram) {
 }
 
 TEST(socket_builder_unix_domain, CanBuildUnixDomainStream) {
-	std::unique_ptr<socket_local_stream> sock { socket_local_stream::
-		create()->bind({.host = srv_path})->build() };
+	auto sock { make_socket<AF_UNIX, SOCK_STREAM>({.host = srv_path})};
 
 	ASSERT_TRUE(is_open(*sock));
 	ASSERT_NE(sockno(*sock), INVALID_SOCKET);
@@ -228,8 +224,8 @@ TEST(socket_tcp, CanReceiveAndSendDataFromClient) {
 }
 
 TEST(socket_builder_udp, CanBuildUDPSocketWithPortOnly) {
-	std::unique_ptr<socket_udp> sockUP { socket_udp::
-    create()->bind({SERVICE})->build() };
+
+	auto sockUP { make_socket<AF_INET, SOCK_DGRAM>({.service=SERVICE})};
 
 	socket_listen(*sockUP);
 	ASSERT_NE(sockno(*sockUP), INVALID_SOCKET);
@@ -237,8 +233,8 @@ TEST(socket_builder_udp, CanBuildUDPSocketWithPortOnly) {
 }
 
 TEST(socket_builder_udp, CanBuildUDPSocketWithPortAndIPAddress) {
-	std::unique_ptr<socket_udp> sockUP { socket_udp::
-    create()->bind({HOST, SERVICE})->build() };
+	auto sockUP {
+		make_socket<AF_INET, SOCK_DGRAM>({.host=HOST, .service=SERVICE})};
 
 	socket_listen(*sockUP);
 

@@ -118,7 +118,7 @@ file(GLOB wasl_headers CONFIGURE_DEPENDS "${path_to_headers}/wasl/*.h")
 cmake_print_variables(wasl_headers)
 
 
-if (CMAKE_BUILD_TYPE MATCHES "^[Dd]ebug" AND 0) # temp disabled
+if (CMAKE_BUILD_TYPE MATCHES "^[Dd]ebug") # temp disabled
 	find_program(CLANG_TIDY "clang-tidy")
 
 	if (CLANG_TIDY)

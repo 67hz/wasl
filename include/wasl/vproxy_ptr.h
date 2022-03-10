@@ -64,7 +64,7 @@ public:
   /// loaded.
   template <typename... Args>
   typename std::enable_if_t<std::is_constructible<T, Args...>::value, pointer>
-  load(Args &&...args) {
+  load(Args &&... args) {
     if (proxy == nullptr) {
       proxy = new T(std::forward<Args...>(args)...);
     }
@@ -158,7 +158,7 @@ private:
 
   /// Stores constructor params for deferred loading.
   /// \return factory lambda creating a T*
-  template <typename... Args> auto lazy_constructor(Args &&...args) {
+  template <typename... Args> auto lazy_constructor(Args &&... args) {
     return [args...]() { return new T((args)...); };
   }
 
