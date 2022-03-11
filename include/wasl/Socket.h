@@ -104,11 +104,11 @@ struct sockaddr_storage get_address(SOCKET sfd) {
   return res;
 }
 
-/// create AF_INET, AF_INET6 as DGRAMS or SOCK_STREAM
-template <int Family, int SocketType, typename traits = socket_traits<Family>>
-auto create_inet_address(Address_info info) {
+template <int Family, int SocketType, typename traits = socket_traits<Family>,
+          typename Addr = typename traits::addr_type>
+int create_address(Address_info info, Addr &out_addr, inet_socket_tag) {
   struct addrinfo hints {};
-  struct addrinfo *result{};
+  struct addrinfo *result{nullptr};
   int rc = 0;
 
   memset(&hints, 0, sizeof(hints));
@@ -122,31 +122,25 @@ auto create_inet_address(Address_info info) {
 
   rc = getaddrinfo(info.host, info.service, &hints, &result);
   if (rc != 0) {
-    /// \TODO handle error
-    std::cout << "getaddrinfo failed: " << gai_strerror(rc) << '\n';
+    return INVALID_SOCKET;
   }
 
   // TODO scan all results
-  typename traits::addr_type addr =
+  out_addr =
       *(reinterpret_cast<typename traits::addr_type *>(result[0].ai_addr));
   freeaddrinfo(result);
-  return addr;
-}
-
-template <int Family, int SocketType, typename traits = socket_traits<Family>>
-typename traits::addr_type create_address(Address_info info, inet_socket_tag) {
-  return create_inet_address<Family, SocketType>(info);
+  return 0;
 }
 
 #ifdef SYS_API_LINUX
-template <int Family, int SocketType, typename traits = socket_traits<Family>>
-typename traits::addr_type create_address(Address_info info, path_socket_tag) {
-  struct sockaddr_un addr;
-  addr.sun_family = AF_UNIX;
-  assert((strlen(info.host) < sizeof(addr.sun_path) - 1));
+template <int Family, int SocketType, typename traits = socket_traits<Family>,
+          typename Addr = typename traits::addr_type>
+int create_address(Address_info info, Addr &out_addr, path_socket_tag) {
+  out_addr.sun_family = AF_UNIX;
+  assert((strlen(info.host) < sizeof(out_addr.sun_path) - 1));
 
-  strncpy(addr.sun_path, info.host, sizeof(addr.sun_path) - 1);
-  return addr;
+  strncpy(out_addr.sun_path, info.host, sizeof(out_addr.sun_path) - 1);
+  return 0;
 }
 #endif
 
@@ -171,8 +165,10 @@ template <int Family, int Socket_Type, typename traits = socket_traits<Family>,
           socklen_t len = sizeof(typename traits::addr_type)>
 SOCKET socket_connect(const wasl_socket<Family, Socket_Type> &node,
                       const Address_info info) {
-  auto peer_addr =
-      create_address<Family, Socket_Type>(info, typename traits::tag());
+  typename traits::addr_type peer_addr;
+  if (create_address<Family, Socket_Type>(info, peer_addr,
+                                          typename traits::tag()) == -1)
+    return INVALID_SOCKET;
 
   return (::connect(sockno(node),
                     reinterpret_cast<struct sockaddr *>(&peer_addr),
@@ -200,11 +196,11 @@ SOCKET socket_accept(const wasl_socket<Family, Socket_Type> *listening_node) {
   }
 
   auto socklen = len;
-  typename traits::addr_type peer_addr;
+  typename traits::addr_type peer_addr{};
   return accept(sockno(*listening_node), (SOCKADDR *)(&peer_addr), &socklen);
 }
 
-} // namespace
+} // namespace anon
 
 /// RAII Wrapper for a socket that close()'s socket connection on destruction.
 /// \tparam Family socket family (address protocol suite)
@@ -227,8 +223,10 @@ public:
   }
 
   wasl_socket &bind(Address_info info) {
-    auto addr =
-        create_address<Family, SocketType>(info, typename traits::tag());
+    typename traits::addr_type addr{};
+    if (create_address<Family, SocketType>(info, addr,
+                                           typename traits::tag()) == -1)
+      sock_err |= SockError::ERR_BIND;
 
     if (Family == AF_LOCAL) { // unix domain
       // remove any artifacts from socket invocation

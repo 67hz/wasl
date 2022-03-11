@@ -4,6 +4,7 @@
 #include <gsl/span>
 
 #include "test_helpers.h"
+#include "wasl/Types.h"
 #include <gtest/gtest.h>
 
 using namespace testing;
@@ -40,8 +41,6 @@ TEST(socket_client_tcp, CanReceiveAndSendDataFromServer) {
 		std::make_unique<wasl_socket<AF_INET, SOCK_STREAM>>() };
 	socket_connect(*client, {HOST, SERVICE});
 
-	EXPECT_EQ(client->error(), SockError::ERR_NONE);
-
 	char buf[BUFSIZ];
 	struct sockaddr_in addr;
 	auto ss_cl { sdopen(sockno(*client)) };
@@ -52,3 +51,4 @@ TEST(socket_client_tcp, CanReceiveAndSendDataFromServer) {
 	*ss_cl >> buf;
 	ASSERT_STREQ(buf, msg);
 }
+
