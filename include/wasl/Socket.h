@@ -41,8 +41,6 @@ struct Address_info {
   bool reuse_addr{true};
 };
 
-template <typename SocketNode> struct socket_builder;
-template <typename Derived> class socket_builder_base;
 template <int Family, int SocketType> class wasl_socket;
 
 struct inet_socket_tag {};
@@ -200,7 +198,7 @@ SOCKET socket_accept(const wasl_socket<Family, Socket_Type> *listening_node) {
   return accept(sockno(*listening_node), (SOCKADDR *)(&peer_addr), &socklen);
 }
 
-} // namespace anon
+} // namespace
 
 /// RAII Wrapper for a socket that close()'s socket connection on destruction.
 /// \tparam Family socket family (address protocol suite)
@@ -216,45 +214,17 @@ public:
     assert(iResult == 0);
 #endif
 
-    sd = ::socket(Family, SocketType, 0);
+    sd_ = ::socket(Family, SocketType, 0);
 
-    if (!is_valid_socket(sd))
-      sock_err |= SockError::ERR_SOCKET;
+    if (!is_valid_socket(sd_))
+      sock_err_ |= SockError::ERR_SOCKET;
   }
 
-  wasl_socket &bind(Address_info info) {
-    typename traits::addr_type addr{};
-    if (create_address<Family, SocketType>(info, addr,
-                                           typename traits::tag()) == -1)
-      sock_err |= SockError::ERR_BIND;
+  wasl_socket(wasl_socket& other) = delete;
+  auto& operator=(wasl_socket& other) = delete;
 
-    if (Family == AF_LOCAL) { // unix domain
-      // remove any artifacts from socket invocation
-      remove(info.host);
-    }
-
-    if (info.reuse_addr) {
-      int optval{1};
-      if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) ==
-          -1)
-        sock_err |= SockError::ERR_SOCKET_OPT;
-    }
-
-    if (::bind(sd, reinterpret_cast<struct sockaddr *>(&addr),
-               sizeof(typename traits::addr_type)) == -1) {
-      sock_err |= SockError::ERR_BIND;
-    }
-    return *this;
-  }
-
-  wasl_socket &connect(Address_info peer_info) {
-    if (socket_connect(*this, peer_info) == -1) {
-      sock_err |= SockError::ERR_CONNECT;
-    }
-    return *this;
-  }
-
-  void close() { this->destroy(typename traits::tag()); }
+  wasl_socket(wasl_socket&& other) noexcept = default;
+  auto operator=(wasl_socket&& other) noexcept -> wasl_socket& = default;
 
   ~wasl_socket() {
     destroy(typename traits::tag());
@@ -264,57 +234,92 @@ public:
 #endif
   }
 
+  wasl_socket &bind(Address_info info) {
+    typename traits::addr_type addr{};
+    if (create_address<Family, SocketType>(info, addr,
+                                           typename traits::tag()) == -1)
+      sock_err_ |= SockError::ERR_BIND;
+
+    if (Family == AF_LOCAL) { // unix domain
+      // remove any artifacts from socket invocation
+      remove(info.host);
+    }
+
+    if (info.reuse_addr) {
+      int optval{1};
+      if (setsockopt(sd_, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) ==
+          -1)
+        sock_err_ |= SockError::ERR_SOCKET_OPT;
+    }
+
+    if (::bind(sd_, reinterpret_cast<struct sockaddr *>(&addr),
+               sizeof(typename traits::addr_type)) == -1) {
+      sock_err_ |= SockError::ERR_BIND;
+    }
+    return *this;
+  }
+
+  wasl_socket &connect(Address_info peer_info) {
+    if (socket_connect(*this, peer_info) == -1) {
+      sock_err_ |= SockError::ERR_CONNECT;
+    }
+    return *this;
+  }
+
+  void close() { this->destroy(typename traits::tag()); }
+
+
+
   auto get_error() const {
 #ifndef NDEBUG
-    std::cerr << "wasl error: " << local::toUType(sock_err) << '\n';
+    std::cerr << "wasl error: " << local::toUType(sock_err_) << '\n';
 #endif
     return GET_SOCKERRNO();
   }
 
+  inline constexpr SockError error() const { return sock_err_; }
+
+  explicit operator bool() const {
+    return !local::toUType(sock_err_) && is_open(*this);
+  }
+
   /// \TODO use isfdtype(int fd, int fdtype) to check actual socket existence
   inline friend constexpr bool is_open(const wasl_socket &node) noexcept {
-    return is_valid_socket(node.sd);
+    return is_valid_socket(node.sd_);
   }
 
   inline friend constexpr SOCKET sockno(const wasl_socket &node) noexcept {
-    return node.sd;
+    return node.sd_;
   }
+
+  auto sd() const { return sd_; }
 
   /// Get a pointer to the associated socket address struct
   inline friend constexpr std::unique_ptr<typename traits::addr_type>
   as_address(const wasl_socket &node) noexcept {
     gsl::owner<sockaddr_storage *> addr = new sockaddr_storage;
-    *addr = get_address(node.sd);
+    *addr = get_address(node.sd_);
     return std::unique_ptr<typename traits::addr_type>(
         reinterpret_cast<typename traits::addr_type *>(addr));
   }
 
-  explicit operator bool() const {
-    return !local::toUType(sock_err) && is_open(*this);
-  }
-
   inline friend constexpr bool operator==(const wasl_socket &lhs,
                                           const wasl_socket &rhs) {
-    return lhs.sd == rhs.sd;
+    return lhs.sd_ == rhs.sd_;
   }
 
   inline friend constexpr bool operator!=(const wasl_socket &lhs,
                                           const wasl_socket &rhs) {
-    return !(lhs.sd == rhs.sd);
+    return !(lhs.sd_ == rhs.sd_);
   }
 
-  inline constexpr SockError error() const { return sock_err; }
 
 private:
-  SockError sock_err{SockError::ERR_NONE};
-  SOCKET sd{INVALID_SOCKET}; // a socket descriptor
+  SockError sock_err_{SockError::ERR_NONE};
+  SOCKET sd_{INVALID_SOCKET}; // a socket descriptor
 #ifdef SYS_API_WIN32
   WSAData wsaData;
 #endif
-
-  friend socket_builder<wasl_socket<Family, SocketType>>;
-
-  template <typename B> friend class socket_builder_base;
 
 #ifdef SYS_API_LINUX
   void destroy(path_socket_tag) {
@@ -329,11 +334,11 @@ private:
 
   // close socket for everything except unix domain sockets
   void destroy(inet_socket_tag) {
-    if (is_valid_socket(sd)) {
+    if (is_valid_socket(sd_)) {
 #ifndef NDEBUG
-      std::cout << "closing socket: " << sd << '\n';
+      std::cout << "closing socket: " << sd_ << '\n';
 #endif
-      closesocket(sd);
+      closesocket(sd_);
     }
   }
 };
